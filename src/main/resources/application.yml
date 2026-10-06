@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: single-store-service
+server:
+  port: ${SERVER_PORT:18080}
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
