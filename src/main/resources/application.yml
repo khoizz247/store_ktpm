@@ -1,8 +1,38 @@
 spring:
   application:
     name: single-store-service
+
+  datasource:
+    url: "jdbc:h2:mem:single-store-team;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+
+  flyway:
+    enabled: false
+
+  jpa:
+    defer-datasource-initialization: false
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
+  sql:
+    init:
+      mode: never
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
 server:
   port: ${SERVER_PORT:18080}
+
+app:
+  seed:
+    enabled: false
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
