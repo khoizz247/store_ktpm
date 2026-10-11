@@ -1,10 +1,12 @@
 package vn.edu.sales.infrastructure.persistence.user;
 
+import org.springframework.stereotype.Repository;
 import vn.edu.sales.application.port.out.UserRepository;
 import vn.edu.sales.domain.model.User;
 
 import java.util.Optional;
 
+@Repository
 public class UserRepositoryAdapter implements UserRepository {
     private final SpringDataUserRepository repository;
 
