@@ -1,18 +1,25 @@
 # Single Store Service
 
 Backend quản lý bán hàng cho một cửa hàng, sử dụng Java và Spring Boot.
-Phiên bản hiện tại cung cấp cấu trúc ứng dụng, API kiểm tra hoạt động,
-tài liệu Swagger và cấu hình Docker.
+Phiên bản hiện tại có model/port, JPA adapter cho user/product/order,
+JWT infrastructure và nền tảng transaction/biến động kho. API nghiệp vụ
+đầy đủ đang được tích hợp; `/api/health` vẫn công khai.
 
 ## Công nghệ và chức năng hiện tại
 
 - Java 21, Spring Boot 3.5.0, REST JSON và validation dependency.
-- `GET /api/health`, Swagger, một integration test khởi động/health.
+- `GET /api/health`, Swagger, test khởi động/health và unit test AuthService.
+- H2 mặc định: Hibernate tạo bốn bảng JPA trước, `schema-h2.sql` tạo
+  `cart_items` và `inventory_movements` sau. Flyway và seed tắt ở H2.
+- `SpringTransactionRunner` và `JdbcInventoryStore`, cùng integration test
+  commit/rollback JPA + JDBC, audit và ràng buộc dữ liệu.
 - Maven Wrapper, Dockerfile, Compose chỉ API và CI build/test.
 - Tài liệu kiến trúc phân tầng.
 
-Các module tài khoản, sản phẩm, đơn hàng và MySQL nằm trong phạm vi phát triển
-tiếp theo. API `/api/health` hiện kiểm tra hoạt động của ứng dụng.
+Auth controller, API sản phẩm và nghiệp vụ tạo đơn chưa hoàn chỉnh.
+Profile MySQL đã chuẩn bị cho `single_store_team` tại cổng `3309`, dùng
+Flyway và Hibernate `validate`; Compose hiện vẫn chỉ chạy API với H2.
+Hướng dẫn kiểm tra nền tảng dữ liệu: [DATABASE_FOUNDATION.md](docs/DATABASE_FOUNDATION.md).
 
 ## Chạy
 
