@@ -68,9 +68,14 @@ public class OrderService {
     }
 
     private User activeUser(String email) {
-        return userRepository.findByEmail(email.toLowerCase(Locale.ROOT))
-                .filter(user -> user.status() == UserStatus.ACTIVE)
+        User user = userRepository.findByEmail(email.toLowerCase(Locale.ROOT))
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy khách hàng"));
+
+        if (user.status() != UserStatus.ACTIVE) {
+            throw new BusinessConflictException("Tài khoản khách hàng không ở trạng thái hoạt động");
+        }
+
+        return user;
     }
 
     private String newOrderCode() {

@@ -27,15 +27,21 @@ class OrderServiceTest {
 
     private final Product keyboard = new Product(11L, "KB-11", "Bàn phím", "",
             new BigDecimal("125.50"), 5, ProductStatus.ACTIVE, 0L);
+    private final Product mouse = new Product(5L, "MS-05", "Chuột", "",
+            new BigDecimal("50.00"), 10, ProductStatus.ACTIVE, 0L);
 
     @BeforeEach
     void setUp() {
         TransactionRunner transactions = new TransactionRunner() {
-            @Override public <T> T execute(Supplier<T> work) { return work.get(); }
+            @Override
+            public <T> T execute(Supplier<T> work) {
+                return work.get();
+            }
         };
         service = new OrderService(orders, products, users, transactions, inventory);
-        when(users.findByEmail("customer@example.com")).thenReturn(Optional.of(new User(3L,
-                "customer@example.com", "hash", "Customer", Role.CUSTOMER, UserStatus.ACTIVE, null)));
+        when(users.findByEmail("customer@example.com"))
+                .thenReturn(Optional.of(new User(3L, "customer@example.com", "hash",
+                        "Customer", Role.CUSTOMER, UserStatus.ACTIVE, null)));
     }
 
     @Test
@@ -48,7 +54,8 @@ class OrderServiceTest {
                     input.createdAt(), input.updatedAt(), input.items());
         });
 
-        Order result = service.create("customer@example.com", "Người nhận", "0901234567", "Hà Nội",
+        Order result = service.create("customer@example.com", "Người nhận",
+                "0901234567", "Hà Nội",
                 List.of(new OrderService.CreateLine(11L, 2)));
 
         assertThat(result.status()).isEqualTo(OrderStatus.PENDING);
@@ -64,11 +71,50 @@ class OrderServiceTest {
     void insufficientStockDoesNotSaveOrderOrChangeInventory() {
         when(products.findAllByIdsForUpdate(List.of(11L))).thenReturn(List.of(keyboard));
 
-        assertThatThrownBy(() -> service.create("customer@example.com", "Người nhận", "0901234567",
-                "Hà Nội", List.of(new OrderService.CreateLine(11L, 6))))
+        assertThatThrownBy(() -> service.create("customer@example.com", "Người nhận",
+                "0901234567", "Hà Nội",
+                List.of(new OrderService.CreateLine(11L, 6))))
                 .isInstanceOf(BusinessConflictException.class);
 
         verify(products, never()).saveAll(anyList());
         verifyNoInteractions(orders, inventory);
+    }
+
+    @Test
+    void duplicateLinesThrowException() {
+        assertThatThrownBy(() -> service.create("customer@example.com", "Người nhận",
+                "0901234567", "Hà Nội",
+                List.of(new OrderService.CreateLine(11L, 1),
+                        new OrderService.CreateLine(11L, 2))))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        verifyNoInteractions(products, orders, inventory);
+    }
+
+    @Test
+    void inactiveCustomerThrowsException() {
+        when(users.findByEmail("locked@example.com"))
+                .thenReturn(Optional.of(new User(4L, "locked@example.com", "hash",
+                        "Locked", Role.CUSTOMER, UserStatus.LOCKED, null)));
+
+        assertThatThrownBy(() -> service.create("locked@example.com", "Người nhận",
+                "0901234567", "Hà Nội",
+                List.of(new OrderService.CreateLine(11L, 1))))
+                .isInstanceOf(BusinessConflictException.class);
+
+        verifyNoInteractions(products, orders, inventory);
+    }
+
+    @Test
+    void productsLockedInAscendingOrder() {
+        when(products.findAllByIdsForUpdate(List.of(5L, 11L))).thenReturn(List.of(mouse, keyboard));
+        when(orders.save(any(Order.class))).thenAnswer(call -> call.getArgument(0));
+
+        service.create("customer@example.com", "Người nhận",
+                "0901234567", "Hà Nội",
+                List.of(new OrderService.CreateLine(11L, 1),
+                        new OrderService.CreateLine(5L, 2)));
+
+        verify(products).findAllByIdsForUpdate(List.of(5L, 11L));
     }
 }
