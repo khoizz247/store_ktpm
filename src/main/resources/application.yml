@@ -35,7 +35,7 @@ app:
     secret: ${JWT_SECRET:c2luZ2xlLXN0b3JlLXNlcnZpY2UtbG9jYWwtb25seS1zZWNyZXQtMjAyNi1jaGFuZ2UtbWU=}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
   seed:
-    enabled: false
+    enabled: true
 
 springdoc:
   swagger-ui:
