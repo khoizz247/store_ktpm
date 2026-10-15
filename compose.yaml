@@ -1,14 +1,45 @@
-name: single-store-team-base
+name: single-store-team
 services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: single_store_team
+      MYSQL_USER: ${MYSQL_USER:-single_store_team_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:${MYSQL_HOST_PORT:-3309}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_PASSWORD\" mysql --protocol=tcp -h127.0.0.1 -u\"$$MYSQL_USER\" \"$$MYSQL_DATABASE\" -e 'SELECT 1' >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
   api:
     build: .
     environment:
+      SPRING_PROFILES_ACTIVE: mysql
       SERVER_PORT: 8080
+      DB_URL: jdbc:mysql://mysql:3306/single_store_team?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Bangkok
+      DB_USERNAME: ${MYSQL_USER:-single_store_team_user}
+      DB_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
     ports:
-      - "${API_HOST_PORT:-18081}:8080"
+      - "127.0.0.1:${API_HOST_PORT:-18081}:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:8080/api/health >/dev/null"]
       interval: 10s
       timeout: 5s
       retries: 12
       start_period: 30s
+
+volumes:
+  mysql_data:

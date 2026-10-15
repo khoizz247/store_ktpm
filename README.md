@@ -10,18 +10,18 @@ JWT infrastructure và nền tảng transaction/biến động kho. API nghiệp
 - Java 21, Spring Boot 3.5.0, REST JSON và validation dependency.
 - `GET /api/health`, Swagger, test khởi động/health và unit test AuthService.
 - H2 mặc định: Hibernate tạo bốn bảng JPA trước, `schema-h2.sql` tạo
-  `cart_items` và `inventory_movements` sau. Flyway và seed tắt ở H2.
+  `cart_items` và `inventory_movements` sau. Flyway tắt, seed demo bật ở H2.
 - `SpringTransactionRunner` và `JdbcInventoryStore`, cùng integration test
   commit/rollback JPA + JDBC, audit và ràng buộc dữ liệu.
-- Maven Wrapper, Dockerfile, Compose chỉ API và CI build/test.
+- Maven Wrapper, Dockerfile, Compose API + MySQL và CI build/test.
 - Tài liệu kiến trúc phân tầng.
 
-Auth controller và nghiệp vụ tạo đơn C3 đã có; controller đơn vẫn là route thử,
-API sản phẩm chưa được tích hợp trên main tại thời điểm gói này bắt đầu.
+Auth API, ProductService và API tạo/xem đơn C4 đã có. ProductController chưa được
+tích hợp trên main tại thời điểm D4 bắt đầu; ProductService chưa được nối bean B4.
 Adapter giỏ và tìm kiếm đơn đã sẵn sàng, chưa có API giỏ/search đơn.
 Chi tiết: [CART_AND_ORDER_SEARCH.md](docs/CART_AND_ORDER_SEARCH.md).
 Profile MySQL đã chuẩn bị cho `single_store_team` tại cổng `3309`, dùng
-Flyway và Hibernate `validate`; Compose hiện vẫn chỉ chạy API với H2.
+Flyway và Hibernate `validate`; Compose dùng MySQL, không dùng H2.
 Hướng dẫn kiểm tra nền tảng dữ liệu: [DATABASE_FOUNDATION.md](docs/DATABASE_FOUNDATION.md).
 
 ## Chạy
@@ -35,11 +35,14 @@ Yêu cầu JDK 21 trở lên. Chạy IntelliJ mặc định ở cổng 18080.
 Có thể đổi cổng bằng biến môi trường `SERVER_PORT`.
 Swagger: `http://localhost:18080/swagger-ui.html`.
 
-Docker mặc định dùng cổng 18081:
+Docker mặc định dùng API 18081, MySQL 3309. Chuẩn bị .env riêng trước khi chạy;
+thông tin đầy đủ và kiểm chứng tại [DOCKER_MYSQL.md](docs/DOCKER_MYSQL.md).
 
 ```powershell
-docker compose up --build -d
+docker compose config --quiet
+docker compose up --build -d --wait --wait-timeout 240
 curl.exe http://localhost:18081/api/health
+python scripts/verify_mysql.py
 ```
 
 Swagger khi chạy Docker: `http://localhost:18081/swagger-ui.html`.
