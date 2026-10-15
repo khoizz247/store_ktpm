@@ -23,6 +23,7 @@ class OrderServiceTest {
     private final ProductRepository products = mock(ProductRepository.class);
     private final UserRepository users = mock(UserRepository.class);
     private final InventoryStore inventory = mock(InventoryStore.class);
+    private final OrderSearchStore searches = mock(OrderSearchStore.class);
     private OrderService service;
 
     private final Product keyboard = new Product(11L, "KB-11", "Bàn phím", "",
@@ -38,7 +39,7 @@ class OrderServiceTest {
                 return work.get();
             }
         };
-        service = new OrderService(orders, products, users, transactions, inventory);
+        service = new OrderService(orders, products, users, transactions, inventory, searches);
         when(users.findByEmail("customer@example.com"))
                 .thenReturn(Optional.of(new User(3L, "customer@example.com", "hash",
                         "Customer", Role.CUSTOMER, UserStatus.ACTIVE, null)));

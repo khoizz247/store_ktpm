@@ -11,9 +11,9 @@ public class ApplicationBeanConfig {
     @Bean
     OrderService orderService(OrderRepository orderRepository, ProductRepository productRepository,
                               UserRepository userRepository, TransactionRunner transactionRunner,
-                              InventoryStore inventoryStore) {
+                              InventoryStore inventoryStore, OrderSearchStore orderSearchStore) {
         return new OrderService(orderRepository, productRepository,userRepository,
-                                transactionRunner, inventoryStore);
+                                transactionRunner, inventoryStore, orderSearchStore);
     }
 
     @Bean
