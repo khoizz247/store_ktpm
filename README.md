@@ -16,7 +16,10 @@ JWT infrastructure và nền tảng transaction/biến động kho. API nghiệp
 - Maven Wrapper, Dockerfile, Compose chỉ API và CI build/test.
 - Tài liệu kiến trúc phân tầng.
 
-Auth controller, API sản phẩm và nghiệp vụ tạo đơn chưa hoàn chỉnh.
+Auth controller và nghiệp vụ tạo đơn C3 đã có; controller đơn vẫn là route thử,
+API sản phẩm chưa được tích hợp trên main tại thời điểm gói này bắt đầu.
+Adapter giỏ và tìm kiếm đơn đã sẵn sàng, chưa có API giỏ/search đơn.
+Chi tiết: [CART_AND_ORDER_SEARCH.md](docs/CART_AND_ORDER_SEARCH.md).
 Profile MySQL đã chuẩn bị cho `single_store_team` tại cổng `3309`, dùng
 Flyway và Hibernate `validate`; Compose hiện vẫn chỉ chạy API với H2.
 Hướng dẫn kiểm tra nền tảng dữ liệu: [DATABASE_FOUNDATION.md](docs/DATABASE_FOUNDATION.md).
