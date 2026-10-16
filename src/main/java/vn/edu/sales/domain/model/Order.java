@@ -32,4 +32,9 @@ public record Order(Long id, String orderCode, Long userId, String recipientName
             totalAmount = items.stream().map(OrderItem::lineTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
         }
     }
+
+    public Order withStatus(OrderStatus newStatus) {
+        return new Order(id, orderCode, userId, recipientName, recipientPhone, shippingAddress,
+                newStatus, totalAmount, createdAt, updatedAt, items);
+    }
 }

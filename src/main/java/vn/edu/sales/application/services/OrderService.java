@@ -107,6 +107,55 @@ public class OrderService {
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng: " + id));
     }
 
+    public Order cancelMine(String customerEmail, Long id) {
+        return transactionRunner.execute(() -> {
+            User user = activeUser(customerEmail);
+            Order order = orderRepository.findByIdForUpdate(id)
+                    .filter(found -> found.userId().equals(user.id()))
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng: " + id));
+            if (order.status() != OrderStatus.PENDING)
+                throw new BusinessConflictException("Khách hàng chỉ được hủy đơn đang PENDING");
+            return changeStatusLocked(order, OrderStatus.CANCELLED, user.id());
+        });
+    }
+
+    private Order changeStatusLocked(Order order, OrderStatus nextStatus, Long actorUserId) {
+        if (order.status() == nextStatus) return order;
+        validateTransition(order.status(), nextStatus);
+        if (nextStatus == OrderStatus.CANCELLED) {
+            restoreStock(order, actorUserId);
+        }
+        return orderRepository.save(order.withStatus(nextStatus));
+    }
+
+    private void validateTransition(OrderStatus current, OrderStatus next) {
+        boolean allowed = switch (current) {
+            case PENDING -> next == OrderStatus.CONFIRMED || next == OrderStatus.CANCELLED;
+            case CONFIRMED -> next == OrderStatus.SHIPPING || next == OrderStatus.CANCELLED;
+            case SHIPPING -> next == OrderStatus.COMPLETED;
+            case COMPLETED, CANCELLED -> false;
+        };
+        if (!allowed) throw new BusinessConflictException("Không thể chuyển trạng thái từ " + current + " sang " + next);
+    }
+    private void restoreStock(Order order, Long actorUserId) {
+        List<Long> ids = order.items().stream().map(OrderItem::productId).sorted().toList();
+        Map<Long, Product> products = productRepository.findAllByIdsForUpdate(ids).stream()
+                .collect(Collectors.toMap(Product::id, Function.identity()));
+        List<Product> changed = order.items().stream().map(item -> {
+            Product product = products.get(item.productId());
+            if (product == null) throw new BusinessConflictException("Không thể hoàn kho sản phẩm: " + item.productId());
+            return product.withStock(product.stockQuantity() + item.quantity());
+        }).toList();
+        productRepository.saveAll(changed);
+        for (OrderItem item : order.items()) {
+            Product before = products.get(item.productId());
+            inventory.record(before.id(), order.id(), "SALE_REVERSAL", item.quantity(), before.stockQuantity(),
+                    before.stockQuantity() + item.quantity(), order.orderCode() + "-REVERSAL-" + before.id(),
+                    "Hủy đơn hàng", actorUserId);
+        }
+    }
+
+
     public record CreateLine(Long productId, int quantity) {
     }
 

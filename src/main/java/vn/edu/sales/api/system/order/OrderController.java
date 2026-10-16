@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import vn.edu.sales.application.services.OrderService;
 import vn.edu.sales.domain.model.Order;
 import vn.edu.sales.domain.model.OrderItem;
+import vn.edu.sales.domain.model.OrderStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -41,6 +42,20 @@ public class OrderController {
     @GetMapping("/{id}")
     public OrderResponse detail(Authentication authentication, @PathVariable Long id) {
         return OrderResponse.from(orderService.getMineById(authentication.getName(), id));
+    }
+
+    @GetMapping("/me/search")
+    public PagedOrders searchMine(Authentication authentication,
+                                  @RequestParam(required = false) OrderStatus status,
+                                  @RequestParam(defaultValue = "") String code,
+                                  @RequestParam(defaultValue = "0") int page,
+                                  @RequestParam(defaultValue = "20") int size) {
+        return PagedOrders.from(orderService.searchMine(authentication.getName(), status, code, page, size));
+    }
+
+    @PatchMapping("/{id}/cancel")
+    public OrderResponse cancel(Authentication authentication, @PathVariable Long id) {
+        return OrderResponse.from(orderService.cancelMine(authentication.getName(), id));
     }
 
     public record CreateOrderRequest(
