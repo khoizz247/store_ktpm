@@ -16,9 +16,9 @@ JWT infrastructure và nền tảng transaction/biến động kho. API nghiệp
 - Maven Wrapper, Dockerfile, Compose API + MySQL và CI build/test.
 - Tài liệu kiến trúc phân tầng.
 
-Auth API, ProductService và API tạo/xem đơn C4 đã có. ProductController chưa được
-tích hợp trên main tại thời điểm D4 bắt đầu; ProductService chưa được nối bean B4.
-Adapter giỏ và tìm kiếm đơn đã sẵn sàng, chưa có API giỏ/search đơn.
+Auth API, ProductController B4, API tạo/xem/tìm/hủy đơn C4/C5 đã tích hợp.
+Gói D5 bổ sung API giỏ và checkout, dùng lại transaction tạo đơn và audit.
+Hướng dẫn và JSON demo: [CART_API.md](docs/CART_API.md).
 Chi tiết: [CART_AND_ORDER_SEARCH.md](docs/CART_AND_ORDER_SEARCH.md).
 Profile MySQL đã chuẩn bị cho `single_store_team` tại cổng `3309`, dùng
 Flyway và Hibernate `validate`; Compose dùng MySQL, không dùng H2.
