@@ -118,4 +118,52 @@ class OrderServiceTest {
 
         verify(products).findAllByIdsForUpdate(List.of(5L, 11L));
     }
+
+    @Test
+    void cancellingRestoresStockOnlyOnce() {
+        Order pending = order(OrderStatus.PENDING);
+        Order cancelled = pending.withStatus(OrderStatus.CANCELLED);
+        when(orders.findByIdForUpdate(21L)).thenReturn(Optional.of(pending), Optional.of(cancelled));
+        when(orders.save(any(Order.class))).thenAnswer(call -> call.getArgument(0));
+        when(products.findAllByIdsForUpdate(List.of(11L))).thenReturn(List.of(keyboard));
+
+        assertThat(service.changeStatus(21L, OrderStatus.CANCELLED).status()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(service.changeStatus(21L, OrderStatus.CANCELLED).status()).isEqualTo(OrderStatus.CANCELLED);
+
+        verify(products, times(1)).saveAll(argThat(list -> list.getFirst().stockQuantity() == 7));
+        verify(inventory, times(1)).record(eq(11L), eq(21L), eq("SALE_REVERSAL"), eq(2),
+                eq(5), eq(7), anyString(), anyString(), isNull());
+        verify(orders, times(1)).save(any(Order.class));
+    }
+
+    @Test
+    void customerCancelsOnlyOwnPendingOrderAndInventoryRecordsActor() {
+        Order pending = order(OrderStatus.PENDING);
+        when(orders.findByIdForUpdate(21L)).thenReturn(Optional.of(pending));
+        when(orders.save(any(Order.class))).thenAnswer(call -> call.getArgument(0));
+        when(products.findAllByIdsForUpdate(List.of(11L))).thenReturn(List.of(keyboard));
+
+        assertThat(service.cancelMine("customer@example.com", 21L).status())
+                .isEqualTo(OrderStatus.CANCELLED);
+        verify(inventory).record(eq(11L), eq(21L), eq("SALE_REVERSAL"), eq(2), eq(5), eq(7),
+                anyString(), anyString(), eq(3L));
+    }
+
+    @Test
+    void invalidTransitionReturnsConflict() {
+        when(orders.findByIdForUpdate(21L)).thenReturn(Optional.of(order(OrderStatus.PENDING)));
+        assertThatThrownBy(() -> service.changeStatus(21L, OrderStatus.COMPLETED))
+                .isInstanceOf(BusinessConflictException.class);
+
+        verify(products, never()).saveAll(anyList());
+        verify(orders, never()).save(any(Order.class));
+    }
+
+    private Order order(OrderStatus status) {
+        return new Order(21L, "ORD-21", 3L, "Người nhận",
+                "0901234567", "Hà Nội", status,
+                null, null, null,
+                List.of(new OrderItem(1L, 11L, "Bàn phím",
+                        new BigDecimal("125.50"), 2, null)));
+    }
 }

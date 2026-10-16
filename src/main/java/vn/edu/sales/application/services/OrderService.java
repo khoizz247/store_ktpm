@@ -119,6 +119,14 @@ public class OrderService {
         });
     }
 
+    public Order changeStatus(Long id, OrderStatus nextStatus) {
+        return transactionRunner.execute(() -> {
+            Order order = orderRepository.findByIdForUpdate(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng: " + id));
+            return changeStatusLocked(order, nextStatus, null);
+        });
+    }
+
     private Order changeStatusLocked(Order order, OrderStatus nextStatus, Long actorUserId) {
         if (order.status() == nextStatus) return order;
         validateTransition(order.status(), nextStatus);
