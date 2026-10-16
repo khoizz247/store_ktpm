@@ -1,4 +1,4 @@
-"""Verify D4 against the project's MySQL. Optional order smoke test persists demo data."""
+"""Verify MySQL readiness; optional order/cart smoke tests persist demo data."""
 import argparse
 from decimal import Decimal
 import json
@@ -80,10 +80,44 @@ def exercise_orders(base_url):
     print("Two demo customers and the order/audit remain in MySQL; no automatic deletion or cancellation was performed.")
 
 
+def exercise_cart(base_url):
+    row = sql("SELECT id,price,stock_quantity FROM products WHERE status='ACTIVE' AND stock_quantity>=2 ORDER BY id LIMIT 1")
+    check(bool(row), "No active product with at least two units for cart smoke.")
+    product_id, price, before = row.split("\t")
+    product_id, before = int(product_id), int(before)
+    email = "d5-" + uuid.uuid4().hex + "@example.test"
+    password = "Demo@" + secrets.token_hex(16)
+    status, registered = request(base_url, "/api/auth/register", "POST", {
+        "fullName": "D5 cart customer", "email": email, "password": password})
+    check(status == 201 and registered["role"] == "CUSTOMER", "Cart customer registration failed.")
+    status, logged = request(base_url, "/api/auth/login", "POST", {"email": email, "password": password})
+    check(status == 200 and bool(logged.get("accessToken")), "Cart customer login failed.")
+    token = logged["accessToken"]
+    status, lines = request(base_url, f"/api/cart/items/{product_id}", "PUT", {"quantity": 2}, token)
+    check(status == 200 and len(lines) == 1 and lines[0]["quantity"] == 2, "Cart PUT failed.")
+    status, product = request(base_url, f"/api/products/{product_id}")
+    check(status == 200 and product["stockQuantity"] == before, "Adding to cart must not reserve stock.")
+    status, created = request(base_url, "/api/cart/checkout", "POST", {
+        "recipientName": "D5 smoke", "recipientPhone": "0900000000", "shippingAddress": "Demo only"}, token)
+    check(status == 201 and created["status"] == "PENDING", "Cart checkout failed.")
+    check(Decimal(str(created["totalAmount"])) == Decimal(price) * 2, "Wrong cart order total.")
+    status, lines = request(base_url, "/api/cart", token=token)
+    check(status == 200 and lines == [], "Successful checkout must clear the cart.")
+    status, product = request(base_url, f"/api/products/{product_id}")
+    check(status == 200 and product["stockQuantity"] == before - 2, "Checkout must decrease stock by two.")
+    order_id = int(created["id"])
+    check(sql(f"SELECT COUNT(*) FROM inventory_movements WHERE order_id={order_id} AND movement_type='SALE' AND quantity_change=-2") == "1",
+          "Expected one SALE audit for cart checkout.")
+    print(f"PASS cart smoke: order {order_id}, stock {before} -> {before - 2}, cart empty.")
+    print("Demo customer/order/audit remain in MySQL; stock decreased by two, no automatic cancellation.")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", default="http://localhost:18081")
-    parser.add_argument("--exercise-orders", action="store_true", help="Creates a demo customer and order; stock decreases by one.")
+    exercises = parser.add_mutually_exclusive_group()
+    exercises.add_argument("--exercise-orders", action="store_true", help="Creates demo customers and an order; stock decreases by one.")
+    exercises.add_argument("--exercise-cart", action="store_true", help="Creates a demo customer and checks out two units; stock decreases by two.")
     args = parser.parse_args()
     check(sql("SELECT DATABASE()") == "single_store_team", "Wrong database; refusing to continue.")
     tables = set(sql("SHOW TABLES").splitlines())
@@ -98,6 +132,8 @@ def main():
     print("PASS readiness: single_store_team, six business tables, Flyway V1/V2, API health and OpenAPI.")
     if args.exercise_orders:
         exercise_orders(args.base_url)
+    elif args.exercise_cart:
+        exercise_cart(args.base_url)
 
 
 if __name__ == "__main__":

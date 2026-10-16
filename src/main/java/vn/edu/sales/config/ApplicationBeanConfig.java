@@ -5,10 +5,17 @@ import org.springframework.context.annotation.Configuration;
 import vn.edu.sales.application.port.out.*;
 import vn.edu.sales.application.service.ProductService;
 import vn.edu.sales.application.services.AuthService;
+import vn.edu.sales.application.services.CartService;
 import vn.edu.sales.application.services.OrderService;
 
 @Configuration
 public class ApplicationBeanConfig {
+    @Bean
+    CartService cartService(CartStore carts, UserRepository users, ProductRepository products,
+                            OrderService orders, TransactionRunner transactions) {
+        return new CartService(carts, users, products, orders, transactions);
+    }
+
     @Bean
     ProductService productService(ProductRepository products, InventoryStore inventory,
                                   TransactionRunner transactions, UserRepository users) {

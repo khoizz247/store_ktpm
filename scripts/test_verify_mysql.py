@@ -52,6 +52,24 @@ class VerifyMysqlScriptTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "Wrong server-calculated total"):
                 smoke.exercise_orders("http://localhost:18081")
 
+    def test_cart_smoke_checks_no_reservation_then_checkout_and_clear(self):
+        replies = [(201, {"role": "CUSTOMER"}), (200, {"accessToken": "test-token"}),
+                   (200, [{"quantity": 2}]), (200, {"stockQuantity": 10}),
+                   (201, {"id": 12, "status": "PENDING", "totalAmount": 240000}),
+                   (200, []), (200, {"stockQuantity": 8})]
+        with patch.object(smoke, "sql", side_effect=["3\t120000.00\t10", "1"]), \
+                patch.object(smoke, "request", side_effect=replies) as request, redirect_stdout(io.StringIO()):
+            smoke.exercise_cart("http://localhost:18082")
+            self.assertEqual(request.call_count, 7)
+
+    def test_cart_smoke_rejects_stock_reserved_before_checkout(self):
+        replies = [(201, {"role": "CUSTOMER"}), (200, {"accessToken": "test-token"}),
+                   (200, [{"quantity": 2}]), (200, {"stockQuantity": 8})]
+        with patch.object(smoke, "sql", return_value="3\t120000.00\t10"), \
+                patch.object(smoke, "request", side_effect=replies), redirect_stdout(io.StringIO()):
+            with self.assertRaisesRegex(RuntimeError, "must not reserve stock"):
+                smoke.exercise_cart("http://localhost:18082")
+
 
 if __name__ == "__main__":
     unittest.main()
