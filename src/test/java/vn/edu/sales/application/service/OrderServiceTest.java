@@ -159,6 +159,44 @@ class OrderServiceTest {
         verify(orders, never()).save(any(Order.class));
     }
 
+    @Test
+    void adminCanCancelConfirmedOrderSuccessfully() {
+        Order confirmed = order(OrderStatus.CONFIRMED);
+        when(orders.findByIdForUpdate(21L)).thenReturn(Optional.of(confirmed));
+        when(orders.save(any(Order.class))).thenAnswer(call -> call.getArgument(0));
+        when(products.findAllByIdsForUpdate(List.of(11L))).thenReturn(List.of(keyboard));
+
+        Order result = service.changeStatus(21L, OrderStatus.CANCELLED);
+        assertThat(result.status()).isEqualTo(OrderStatus.CANCELLED);
+        verify(inventory, times(1)).record(eq(11L), eq(21L),
+                eq("SALE_REVERSAL"), anyInt(), anyInt(), anyInt(), anyString(), anyString(), isNull());
+    }
+
+    @Test
+    void shippingToCancelledReturnsConflict() {
+        Order shipping = order(OrderStatus.SHIPPING);
+        when(orders.findByIdForUpdate(21L)).thenReturn(Optional.of(shipping));
+
+        assertThatThrownBy(() -> service.changeStatus(21L, OrderStatus.CANCELLED))
+                .isInstanceOf(BusinessConflictException.class);
+
+        verify(products, never()).saveAll(anyList());
+        verify(orders, never()).save(any(Order.class));
+    }
+
+    @Test
+    void adminPatchSameStatusIsNoOpWithoutExtraStockRestoration() {
+        Order pending = order(OrderStatus.PENDING);
+        when(orders.findByIdForUpdate(21L)).thenReturn(Optional.of(pending));
+
+        Order result = service.changeStatus(21L, OrderStatus.PENDING);
+        assertThat(result.status()).isEqualTo(OrderStatus.PENDING);
+
+        verify(orders, never()).save(any(Order.class));
+        verify(inventory, never()).record(anyLong(), anyLong(), anyString(), anyInt(), anyInt(), anyInt(),
+                anyString(), anyString(), any());
+    }
+
     private Order order(OrderStatus status) {
         return new Order(21L, "ORD-21", 3L, "Người nhận",
                 "0901234567", "Hà Nội", status,

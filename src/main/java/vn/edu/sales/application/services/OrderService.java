@@ -107,6 +107,11 @@ public class OrderService {
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng: " + id));
     }
 
+    public Order getAdminById(Long id) {
+        return orderRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng: " + id));
+    }
+
     public Order cancelMine(String customerEmail, Long id) {
         return transactionRunner.execute(() -> {
             User user = activeUser(customerEmail);
@@ -117,6 +122,10 @@ public class OrderService {
                 throw new BusinessConflictException("Khách hàng chỉ được hủy đơn đang PENDING");
             return changeStatusLocked(order, OrderStatus.CANCELLED, user.id());
         });
+    }
+
+    public OrderPage searchAll(OrderStatus status, String code, int page, int size) {
+        return search(null, status, code, page, size);
     }
 
     public Order changeStatus(Long id, OrderStatus nextStatus) {
