@@ -63,7 +63,6 @@ class ProductApiTest {
         prod5 = products.save(new Product(null, "PROD-05", "Tai nghe không dây Sony WH", "Tai nghe chống ồn",
                 new BigDecimal("6000000"), 8, ProductStatus.ACTIVE, null));
 
-        // Tạo 1 sản phẩm INACTIVE
         inactiveProd = products.save(new Product(null, "PROD-06", "Laptop Toshiba cũ hỏng", "Laptop rã xác",
                 new BigDecimal("500000"), 0, ProductStatus.INACTIVE, null));
     }
@@ -84,7 +83,6 @@ class ProductApiTest {
 
     @Test
     void getAllProductsPaginatesAccuratelyAcrossPages() throws Exception {
-        // Trang 1 (phần tử thứ 3 và 4)
         mvc.perform(get("/api/products")
                         .param("page", "1")
                         .param("size", "2"))
@@ -95,7 +93,6 @@ class ProductApiTest {
                 .andExpect(jsonPath("$.totalPages").value(3))
                 .andExpect(jsonPath("$.items.length()").value(2));
 
-        // Trang 2 (phần tử thứ 5)
         mvc.perform(get("/api/products")
                         .param("page", "2")
                         .param("size", "2"))
@@ -122,7 +119,6 @@ class ProductApiTest {
 
     @Test
     void searchEndpointReturnsFilteredMetadataAndExcludesInactive() throws Exception {
-        // Tìm "Laptop": có 2 sản phẩm ACTIVE (Dell XPS, Lenovo ThinkPad). Laptop Toshiba là INACTIVE nên bị loại trừ.
         mvc.perform(get("/api/products/search")
                         .param("q", "Laptop")
                         .param("page", "0")
@@ -137,7 +133,6 @@ class ProductApiTest {
 
     @Test
     void searchWithEmptyOrWhitespaceQueryReturnsAllActiveMetadata() throws Exception {
-        // Chuỗi rỗng
         mvc.perform(get("/api/products/search")
                         .param("q", "")
                         .param("page", "0")
@@ -147,7 +142,6 @@ class ProductApiTest {
                 .andExpect(jsonPath("$.totalPages").value(1))
                 .andExpect(jsonPath("$.items.length()").value(5));
 
-        // Khoảng trắng
         mvc.perform(get("/api/products/search")
                         .param("q", "   ")
                         .param("page", "0")
@@ -160,7 +154,6 @@ class ProductApiTest {
 
     @Test
     void searchBoundarySizesAndInvalidPagination() throws Exception {
-        // Biên hợp lệ: size = 1
         mvc.perform(get("/api/products/search")
                         .param("page", "0")
                         .param("size", "1"))
@@ -170,7 +163,6 @@ class ProductApiTest {
                 .andExpect(jsonPath("$.totalPages").value(5))
                 .andExpect(jsonPath("$.items.length()").value(1));
 
-        // Biên hợp lệ: size = 100
         mvc.perform(get("/api/products/search")
                         .param("page", "0")
                         .param("size", "100"))
@@ -180,21 +172,18 @@ class ProductApiTest {
                 .andExpect(jsonPath("$.totalPages").value(1))
                 .andExpect(jsonPath("$.items.length()").value(5));
 
-        // Phân trang không hợp lệ: page < 0
         mvc.perform(get("/api/products/search")
                         .param("page", "-1")
                         .param("size", "20"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
 
-        // Phân trang không hợp lệ: size = 0
         mvc.perform(get("/api/products/search")
                         .param("page", "0")
                         .param("size", "0"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
 
-        // Phân trang không hợp lệ: size > 100
         mvc.perform(get("/api/products/search")
                         .param("page", "0")
                         .param("size", "101"))
@@ -204,13 +193,11 @@ class ProductApiTest {
 
     @Test
     void getByIdReturnsActiveProductAndReturns404ForInactive() throws Exception {
-        // Sản phẩm ACTIVE: 200 OK
         mvc.perform(get("/api/products/{id}", prod1.id()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.sku").value(prod1.sku()))
                 .andExpect(jsonPath("$.status").value("ACTIVE"));
 
-        // Sản phẩm INACTIVE: 404 Not Found
         mvc.perform(get("/api/products/{id}", inactiveProd.id()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));

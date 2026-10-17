@@ -73,7 +73,6 @@ class ProductSoftDeleteApiTest {
 
     @Test
     void adminCanSoftDeleteProductAndPublicGetReturns404NotFound() throws Exception {
-        // 1. Trước khi xóa: GET public trả về 200 OK với trạng thái ACTIVE
         mvc.perform(get("/api/products/{id}", product.id()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(product.id()))
@@ -81,17 +80,14 @@ class ProductSoftDeleteApiTest {
                 .andExpect(jsonPath("$.status").value("ACTIVE"))
                 .andExpect(jsonPath("$.stockQuantity").value(10));
 
-        // 2. Gọi API DELETE với token ADMIN -> Trả về 204 No Content
         mvc.perform(delete("/api/products/{id}", product.id())
                         .header("Authorization", adminToken))
                 .andExpect(status().isNoContent());
 
-        // 3. Sau khi xóa: Gọi GET public trực tiếp phải nhận về mã lỗi 404 Not Found
         mvc.perform(get("/api/products/{id}", product.id()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
 
-        // 4. Gọi danh sách /api/products hoặc tìm kiếm /api/products/search không thấy sản phẩm bị xóa mềm
         mvc.perform(get("/api/products"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(0))
@@ -102,7 +98,6 @@ class ProductSoftDeleteApiTest {
                 .andExpect(jsonPath("$.totalElements").value(0))
                 .andExpect(jsonPath("$.items").isEmpty());
 
-        // 5. Kiểm tra trực tiếp dưới DB: bản ghi vẫn còn nhưng status là INACTIVE và tồn kho giữ nguyên
         String dbStatus = jdbc.queryForObject("SELECT status FROM products WHERE id=?", String.class, product.id());
         Integer dbStock = jdbc.queryForObject("SELECT stock_quantity FROM products WHERE id=?", Integer.class, product.id());
         assertThat(dbStatus).isEqualTo("INACTIVE");
@@ -111,18 +106,15 @@ class ProductSoftDeleteApiTest {
 
     @Test
     void deleteProductRequiresAdminRole() throws Exception {
-        // Gọi DELETE không có token -> 401 Unauthorized
         mvc.perform(delete("/api/products/{id}", product.id()))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
 
-        // Gọi DELETE với quyền CUSTOMER -> 403 Forbidden
         mvc.perform(delete("/api/products/{id}", product.id())
                         .header("Authorization", customerToken))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
 
-        // Sản phẩm vẫn còn nguyên trạng thái ACTIVE
         mvc.perform(get("/api/products/{id}", product.id()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("ACTIVE"));
