@@ -1,10 +1,12 @@
 """Verify MySQL readiness; optional order/cart smoke tests persist demo data."""
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 import json
 from pathlib import Path
 import secrets
 import subprocess
+from threading import Barrier
 import urllib.error
 import urllib.request
 import uuid
@@ -112,12 +114,74 @@ def exercise_cart(base_url):
     print("Demo customer/order/audit remain in MySQL; stock decreased by two, no automatic cancellation.")
 
 
+def competing_checkouts(base_url, token, body):
+    """Start two real HTTP requests together; database assertions are checked separately."""
+    start = Barrier(2)
+
+    def checkout():
+        start.wait(timeout=10)
+        return request(base_url, "/api/cart/checkout", "POST", body, token)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(checkout) for _ in range(2)]
+        return [future.result(timeout=45) for future in futures]
+
+
+def check_competing_cart_result(base_url, token, user_id, product_id, before, price, replies):
+    statuses = sorted(status for status, _ in replies)
+    check(statuses == [201, 409], f"Expected one checkout 201 and one conflict 409, got {statuses}.")
+    created = next(body for status, body in replies if status == 201)
+    check(created["status"] == "PENDING" and Decimal(str(created["totalAmount"])) == Decimal(price) * 2,
+          "Wrong order status/total in competing cart checkout.")
+    order_id = int(created["id"])
+    check(sql(f"SELECT COUNT(*) FROM orders WHERE user_id={user_id}") == "1",
+          "Competing checkouts must create exactly one order for this new customer.")
+    check(sql(f"SELECT COUNT(*) FROM order_items WHERE order_id={order_id}") == "1",
+          "Expected exactly one order item.")
+    check(int(sql(f"SELECT stock_quantity FROM products WHERE id={product_id}")) == before - 2,
+          "Competing checkouts deducted stock twice or another buyer changed the stock.")
+    check(sql(f"SELECT COUNT(*) FROM inventory_movements WHERE order_id={order_id}") == "1",
+          "Expected exactly one audit for the checkout order.")
+    check(sql(f"SELECT COUNT(*) FROM inventory_movements WHERE order_id={order_id} AND product_id={product_id} "
+              f"AND movement_type='SALE' AND quantity_change=-2 AND stock_before={before} "
+              f"AND stock_after={before - 2} AND created_by_user_id={user_id}") == "1",
+          "Wrong audit stock equation or actor for competing checkout.")
+    status, lines = request(base_url, "/api/cart", token=token)
+    check(status == 200 and lines == [], "Winning checkout did not clear the cart.")
+    return order_id
+
+
+def exercise_cart_concurrently(base_url):
+    row = sql("SELECT id,price,stock_quantity FROM products WHERE status='ACTIVE' AND stock_quantity>=2 ORDER BY id LIMIT 1")
+    check(bool(row), "No active product with two units for competing cart smoke.")
+    product_id, price, before = row.split("\t")
+    product_id, before = int(product_id), int(before)
+    email = "d6-" + uuid.uuid4().hex + "@example.test"
+    password = "Demo@" + secrets.token_hex(16)
+    status, registered = request(base_url, "/api/auth/register", "POST", {
+        "fullName": "D6 competing customer", "email": email, "password": password})
+    check(status == 201 and registered["role"] == "CUSTOMER", "D6 customer registration failed.")
+    token = registered["accessToken"]
+    user_id = int(sql(f"SELECT id FROM users WHERE email='{email}'"))
+    status, lines = request(base_url, f"/api/cart/items/{product_id}", "PUT", {"quantity": 2}, token)
+    check(status == 200 and len(lines) == 1 and lines[0]["quantity"] == 2, "D6 cart setup failed.")
+    check(int(sql(f"SELECT stock_quantity FROM products WHERE id={product_id}")) == before,
+          "Cart setup changed stock or another buyer is active.")
+    replies = competing_checkouts(base_url, token, {
+        "recipientName": "D6 smoke", "recipientPhone": "0900000000", "shippingAddress": "Demo only"})
+    order_id = check_competing_cart_result(base_url, token, user_id, product_id, before, price, replies)
+    print(f"PASS competing cart: HTTP 201/409, one order {order_id}, stock {before} -> {before - 2}, one SALE, cart empty.")
+    print("Demo customer/order/audit remain in MySQL; no automatic cancellation. This is not a load test.")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", default="http://localhost:18081")
     exercises = parser.add_mutually_exclusive_group()
     exercises.add_argument("--exercise-orders", action="store_true", help="Creates demo customers and an order; stock decreases by one.")
     exercises.add_argument("--exercise-cart", action="store_true", help="Creates a demo customer and checks out two units; stock decreases by two.")
+    exercises.add_argument("--exercise-cart-concurrently", action="store_true",
+                           help="Two checkout requests for one demo cart; persists one order and decreases stock by two.")
     args = parser.parse_args()
     check(sql("SELECT DATABASE()") == "single_store_team", "Wrong database; refusing to continue.")
     tables = set(sql("SHOW TABLES").splitlines())
@@ -134,6 +198,8 @@ def main():
         exercise_orders(args.base_url)
     elif args.exercise_cart:
         exercise_cart(args.base_url)
+    elif args.exercise_cart_concurrently:
+        exercise_cart_concurrently(args.base_url)
 
 
 if __name__ == "__main__":

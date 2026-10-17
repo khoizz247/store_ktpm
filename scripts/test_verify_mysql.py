@@ -70,6 +70,34 @@ class VerifyMysqlScriptTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "must not reserve stock"):
                 smoke.exercise_cart("http://localhost:18082")
 
+    def test_competing_checkout_requests_both_reach_http_client(self):
+        # Request ordering is deliberately unspecified; both workers use the same cart/token.
+        with patch.object(smoke, "request", side_effect=[(201, {"id": 1}), (409, None)]) as request:
+            replies = smoke.competing_checkouts("http://localhost:18082", "test-token", {"recipientName": "D6"})
+            self.assertEqual(sorted(status for status, _ in replies), [201, 409])
+            self.assertEqual(request.call_count, 2)
+            for call in request.call_args_list:
+                self.assertEqual(call.args[1:3], ("/api/cart/checkout", "POST"))
+                self.assertEqual(call.args[4], "test-token")
+
+    def test_competing_cart_verifies_single_order_stock_audit_and_empty_cart(self):
+        replies = [(409, None), (201, {"id": 22, "status": "PENDING", "totalAmount": 240000})]
+        with patch.object(smoke, "sql", side_effect=["1", "1", "8", "1", "1"]), \
+                patch.object(smoke, "request", return_value=(200, [])):
+            self.assertEqual(smoke.check_competing_cart_result(
+                "http://localhost:18082", "test-token", 7, 3, 10, "120000.00", replies), 22)
+
+    def test_competing_cart_rejects_double_success_and_unhandled_error(self):
+        for replies in [[(201, {}), (201, {})], [(201, {}), (500, None)]]:
+            with self.subTest(replies=replies), self.assertRaisesRegex(RuntimeError, "one checkout 201"):
+                smoke.check_competing_cart_result("http://localhost:18082", "token", 7, 3, 10, "120000", replies)
+
+    def test_competing_cart_rejects_double_stock_deduction(self):
+        replies = [(201, {"id": 22, "status": "PENDING", "totalAmount": 240000}), (409, None)]
+        with patch.object(smoke, "sql", side_effect=["1", "1", "6"]), \
+                self.assertRaisesRegex(RuntimeError, "deducted stock twice"):
+            smoke.check_competing_cart_result("http://localhost:18082", "token", 7, 3, 10, "120000", replies)
+
 
 if __name__ == "__main__":
     unittest.main()
