@@ -7,6 +7,7 @@ import vn.edu.sales.application.service.ProductService;
 import vn.edu.sales.application.services.AuthService;
 import vn.edu.sales.application.services.CartService;
 import vn.edu.sales.application.services.OrderService;
+import vn.edu.sales.application.services.PasswordChangeService;
 
 @Configuration
 public class ApplicationBeanConfig {
@@ -33,5 +34,11 @@ public class ApplicationBeanConfig {
     @Bean
     AuthService authService(UserRepository users, PasswordHasher passwords, TokenProvider tokens) {
         return new AuthService(users, passwords, tokens);
+    }
+
+    @Bean
+    PasswordChangeService passwordChangeService(UserRepository users, PasswordHasher passwords,
+                                                TransactionRunner transactions) {
+        return new PasswordChangeService(users, passwords, transactions);
     }
 }
