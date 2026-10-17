@@ -73,6 +73,10 @@ cho quyền, owner isolation, CRUD, không giữ hàng, checkout, validation, gi
 thiếu kho sau khi thêm và luồng checkout/hủy C5. Test concurrency/nhánh lỗi sâu
 thuộc D6; không coi số test là bằng chứng tất cả tình huống đã được kiểm chứng.
 
+Bộ test D6 về rollback sau ghi dữ liệu và checkout cạnh tranh được mô tả trong
+[CHECKOUT_TRANSACTIONS.md](CHECKOUT_TRANSACTIONS.md), kèm lệnh smoke MySQL có ghi
+dữ liệu. Có source test không đồng nghĩa đã chạy PASS trên mọi môi trường.
+
 ## Nguồn tích hợp
 
 CartService và CartController dựa trên single-store-service, đã sửa package và
