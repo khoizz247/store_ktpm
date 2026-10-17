@@ -36,7 +36,8 @@ public class ProductRepositoryAdapter implements ProductRepository {
 
     @Override
     public ProductPage searchActive(String query, int page, int size) {
-        var result = repository.searchByStatus(ProductStatus.ACTIVE, query, PageRequest.of(page, size));
+        String normalized = query == null ? "" : query.trim();
+        var result = repository.searchByStatus(ProductStatus.ACTIVE, normalized, PageRequest.of(page, size));
         return new ProductPage(result.getContent().stream().map(this::toDomain).toList(),
                 page, size, result.getTotalElements(), result.getTotalPages());
     }

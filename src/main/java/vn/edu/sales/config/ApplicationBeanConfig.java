@@ -3,6 +3,7 @@ package vn.edu.sales.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import vn.edu.sales.application.port.out.*;
+import vn.edu.sales.application.service.InventoryService;
 import vn.edu.sales.application.service.ProductService;
 import vn.edu.sales.application.services.AuthService;
 import vn.edu.sales.application.services.CartService;
@@ -34,6 +35,12 @@ public class ApplicationBeanConfig {
     @Bean
     AuthService authService(UserRepository users, PasswordHasher passwords, TokenProvider tokens) {
         return new AuthService(users, passwords, tokens);
+    }
+
+    @Bean
+    InventoryService inventoryService(InventoryStore inventory, ProductRepository products,
+                                      UserRepository users, TransactionRunner transactions) {
+        return new InventoryService(inventory, products, users, transactions);
     }
 
     @Bean
