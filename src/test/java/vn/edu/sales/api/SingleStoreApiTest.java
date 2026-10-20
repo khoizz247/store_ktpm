@@ -45,7 +45,7 @@ class SingleStoreApiTest {
     SpringDataProductRepository products;
 
     @Autowired
-    JdbcTemplate jdbcTemplate; // Dùng JdbcTemplate để query bảng inventory_movements trực tiếp
+    JdbcTemplate jdbcTemplate;
 
     @Autowired
     PasswordEncoder passwords;
@@ -62,30 +62,49 @@ class SingleStoreApiTest {
 
     @Test
     void oneShopFlowEnforcesRolesStockAndCancellation() throws Exception {
-        users.save(new UserJpaEntity(null, "owner@shop.test", passwords.encode("Owner@123456"),
-                "Chủ cửa hàng", Role.ADMIN, UserStatus.ACTIVE));
+        users.save(new UserJpaEntity(
+                null,
+                "owner@shop.test",
+                passwords.encode("Owner@123456"),
+                "Chủ cửa hàng",
+                Role.ADMIN,
+                UserStatus.ACTIVE));
 
         mvc.perform(get("/api/users/me")).andExpect(status().isUnauthorized());
 
-        String customerToken = token(mvc.perform(post("/api/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"fullName":"Khách hàng","email":"customer@shop.test","password":"Customer@123"}
-                                """))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString());
+        String customerToken = token(
+                mvc.perform(post("/api/auth/register")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {
+                                            "fullName":"Khách hàng",
+                                            "email":"customer@shop.test",
+                                            "password":"Customer@123"
+                                        }
+                                        """))
+                        .andExpect(status().isCreated())
+                        .andReturn().getResponse().getContentAsString());
 
         mvc.perform(post("/api/products").header("Authorization", "Bearer " + customerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"sku":"ONE-001","name":"Hàng mẫu","description":"", "price":100000,"stockQuantity":2}
+                                {
+                                    "sku":"ONE-001",
+                                    "name":"Hàng mẫu",
+                                    "description":"",
+                                    "price":100000,
+                                    "stockQuantity":2
+                                }
                                 """))
                 .andExpect(status().isForbidden());
 
         String adminToken = token(mvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"owner@shop.test","password":"Owner@123456"}
+                                {
+                                    "email":"owner@shop.test",
+                                    "password":"Owner@123456"
+                                }
                                 """))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString());
@@ -94,15 +113,29 @@ class SingleStoreApiTest {
                         .header("Authorization", "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"sku":"ONE-001","name":"Hàng mẫu","description":"", "price":100000,"stockQuantity":2}
+                                {
+                                    "sku":"ONE-001",
+                                    "name":"Hàng mẫu",
+                                    "description":"",
+                                    "price":100000,
+                                    "stockQuantity":2
+                                }
                                 """))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString());
         long productId = product.get("id").asLong();
 
         String orderBody = """
-                {"recipientName":"Người nhận","recipientPhone":"0901234567",
-                 "shippingAddress":"Số 1 Hà Nội","items":[{"productId":%d,"quantity":2}]}
+                {
+                    "recipientName":"Người nhận",
+                    "recipientPhone":"0901234567",
+                 "shippingAddress":"Số 1 Hà Nội",
+                 "items":[
+                    {
+                        "productId":%d,
+                        "quantity":2
+                    }
+                 ]}
                 """.formatted(productId);
 
         JsonNode order = json.readTree(mvc.perform(post("/api/orders")
@@ -131,65 +164,120 @@ class SingleStoreApiTest {
 
     @Test
     void concurrentPurchase_enforcesStockAndLocking() throws Exception {
-        users.save(new UserJpaEntity(null, "owner@shop.test", passwords.encode("Owner@123456"),
-                "Chủ cửa hàng", Role.ADMIN, UserStatus.ACTIVE));
+        users.save(new UserJpaEntity(
+                null,
+                "owner@shop.test",
+                passwords.encode("Owner@123456"),
+                "Chủ cửa hàng",
+                Role.ADMIN,
+                UserStatus.ACTIVE
+        ));
 
-        String customerToken = token(mvc.perform(post("/api/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"fullName":"Khách hàng","email":"customer@shop.test","password":"Customer@123"}
-                                """))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString());
+        String adminToken = token(
+                mvc.perform(post("/api/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {
+                                            "email":"owner@shop.test",
+                                            "password":"Owner@123456"
+                                        }
+                                        """))
+                        .andExpect(status().isOk())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString()
+        );
 
-        String adminToken = token(mvc.perform(post("/api/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"email":"owner@shop.test","password":"Owner@123456"}
-                                """))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString());
+        String customer1Token = token(
+                mvc.perform(post("/api/auth/register")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {
+                                            "fullName":"Khách hàng 1",
+                                            "email":"customer1@shop.test",
+                                            "password":"Customer@123"
+                                        }
+                                        """))
+                        .andExpect(status().isCreated())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString()
+        );
 
-        JsonNode product = json.readTree(mvc.perform(post("/api/products")
-                        .header("Authorization", "Bearer " + adminToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"sku":"CONC-001","name":"Sản phẩm tranh chấp","description":"", "price":50000,
-                                "stockQuantity":1}
-                                """))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString());
+        String customer2Token = token(
+                mvc.perform(post("/api/auth/register")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {
+                                            "fullName":"Khách hàng 2",
+                                            "email":"customer2@shop.test",
+                                            "password":"Customer@123"
+                                        }
+                                        """))
+                        .andExpect(status().isCreated())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString()
+        );
+
+        JsonNode product = json.readTree(
+                mvc.perform(post("/api/products")
+                                .header("Authorization", "Bearer " + adminToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {
+                                            "sku":"CONC-001",
+                                            "name":"Sản phẩm tranh chấp",
+                                            "description":"",
+                                            "price":50000,
+                                            "stockQuantity":1
+                                        }
+                                        """))
+                        .andExpect(status().isCreated())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString()
+        );
+
         long productId = product.get("id").asLong();
 
         int threadCount = 2;
         ExecutorService executor = Executors.newFixedThreadPool(threadCount);
         CountDownLatch startLatch = new CountDownLatch(1);
 
-        List<Callable<ResponseEntity<String>>> tasks = new ArrayList<>();
         String orderBody = """
-                {"recipientName":"Người nhận","recipientPhone":"0901234567",
-                 "shippingAddress":"Số 1 Hà Nội","items":[{"productId":%d,"quantity":1}]}
+                {
+                    "recipientName":"Người nhận",
+                    "recipientPhone":"0901234567",
+                    "shippingAddress":"Số 1 Hà Nội",
+                    "items":[
+                        {
+                            "productId":%d,
+                            "quantity":1
+                        }
+                    ]
+                }
                 """.formatted(productId);
 
+        String[] customerTokens = {customer1Token, customer2Token};
+
+        List<Future<ResponseEntity<String>>> futures = new ArrayList<>();
         for (int i = 0; i < threadCount; i++) {
-            tasks.add(() -> {
+            final String tokenForThisThread = customerTokens[i];
+            futures.add(executor.submit(() -> {
                 startLatch.await();
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
-                headers.setBearerAuth(customerToken);
+                headers.setBearerAuth(tokenForThisThread);
                 HttpEntity<String> entity = new HttpEntity<>(orderBody, headers);
                 return restTemplate.postForEntity("/api/orders", entity, String.class);
-            });
+            }));
         }
 
-        List<Future<ResponseEntity<String>>> futures = executor.invokeAll(tasks);
         startLatch.countDown();
-        executor.shutdown();
-        executor.awaitTermination(3, TimeUnit.SECONDS);
 
         int successCount = 0;
         int conflictCount = 0;
-
         for (Future<ResponseEntity<String>> future : futures) {
             ResponseEntity<String> response = future.get();
             if (response.getStatusCode().is2xxSuccessful()) {
@@ -199,16 +287,23 @@ class SingleStoreApiTest {
             }
         }
 
+        executor.shutdown();
+        boolean terminated = executor.awaitTermination(3, TimeUnit.SECONDS);
+
+        assertThat(terminated).isTrue();
         assertThat(successCount).isEqualTo(1);
         assertThat(conflictCount).isEqualTo(1);
-
         assertStock(productId, 0);
-
         Long saleAuditCount = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM inventory_movements WHERE movement_type = ?",
+                """
+                        SELECT COUNT(*)
+                        FROM inventory_movements
+                        WHERE movement_type = ?
+                        """,
                 Long.class,
                 "SALE"
         );
+
         assertThat(saleAuditCount).isEqualTo(1);
     }
 
