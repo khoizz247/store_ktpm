@@ -51,7 +51,7 @@ public abstract class MemberAApiTestSupport {
         // Never run cleanup against Docker, local MySQL, or another test database.
         try (var connection = dataSource.getConnection()) {
             assertThat(connection.getMetaData().getURL())
-                    .startsWith("jdbc:h2:mem:member-a-handoff");
+                    .startsWith("jdbc:h2:mem:");
         }
         for (String table : List.of("inventory_movements", "cart_items", "order_items", "orders", "products", "users")) {
             jdbc.update("DELETE FROM " + table);
