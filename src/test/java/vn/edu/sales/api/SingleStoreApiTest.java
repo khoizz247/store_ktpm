@@ -18,6 +18,7 @@ import vn.edu.sales.domain.model.UserStatus;
 import vn.edu.sales.infrastructure.persistence.product.SpringDataProductRepository;
 import vn.edu.sales.infrastructure.persistence.user.SpringDataUserRepository;
 import vn.edu.sales.infrastructure.persistence.user.UserJpaEntity;
+import org.springframework.test.context.jdbc.Sql;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,6 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@Sql(scripts = "classpath:inventory_movements.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 class SingleStoreApiTest {
 
     @Autowired
