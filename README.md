@@ -73,8 +73,9 @@ riêng và script readiness/smoke. Test H2 không chứng minh migration MySQL �
 
 ## Nghiệm thu Pha 1
 
-Tình trạng, các sửa lỗi và phần cần xác nhận thực tế: [FINAL_REVIEW.md](docs/FINAL_REVIEW.md).
+Tình trạng và các sửa lỗi: [FINAL_REVIEW.md](docs/FINAL_REVIEW.md).
 Không dùng kết quả Kaggle của repository tham chiếu để kết luận hiệu năng bản nhóm.
 Runner, notebook và cách thu CSV: [performance/README.md](performance/README.md).
-Chỉ chốt toàn bộ Pha 1 khi CI của đúng commit xanh và có kết quả Kaggle CPU
-CSV/báo cáo gắn với đúng phiên bản này.
+Baseline `941ec24` đã có CI xanh và kết quả Kaggle CPU đủ bốn pha, đối chiếu
+CSV/HTML/log: [báo cáo tải](performance/REPORT.md). Đủ minh chứng nghiệm thu
+Pha 1 theo đề bài đã cung cấp; không đồng nghĩa sẵn sàng production hoặc đã tối ưu.

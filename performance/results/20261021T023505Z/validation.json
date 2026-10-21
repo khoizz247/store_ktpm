@@ -1,0 +1,146 @@
+{
+  "archive_sha256": "e76a2b7c4c607fc791a155e19a01ed38c6f7e9b4655aa835a79651bc6a092fdb",
+  "run": "single_store_load/20261021T023505Z/",
+  "file_count": 28,
+  "metadata": {
+    "started_at_utc": "2026-10-21T02:37:08.258475+00:00",
+    "environment": "Kaggle CPU Notebook",
+    "git_commit": "941ec24a8158a5bf072d823a129abff5415d0c30",
+    "cpu_count": 4,
+    "memory_gb": 31.35,
+    "java_version": "openjdk version \"21.0.12.1\" 2026-08-18",
+    "mysql_version": "8.0.46-0ubuntu0.24.04.4",
+    "locust_version": "locust 2.32.1 from /usr/local/lib/python3.13/dist-packages/locust (Python 3.13.15)",
+    "phases": {
+      "smoke": {
+        "users": 5,
+        "duration_seconds": 60,
+        "exit_code": 0
+      },
+      "baseline": {
+        "users": 10,
+        "duration_seconds": 120,
+        "exit_code": 0
+      },
+      "main": {
+        "users": 30,
+        "duration_seconds": 300,
+        "exit_code": 0
+      },
+      "high": {
+        "users": 60,
+        "duration_seconds": 300,
+        "exit_code": 0
+      }
+    }
+  },
+  "phases": [
+    {
+      "phase": "smoke",
+      "users": "5",
+      "duration_seconds": "60",
+      "requests": "145",
+      "failures": "0",
+      "failure_percent": "0.0",
+      "rps": "2.46",
+      "p50_ms": "8.0",
+      "p95_ms": "87.0",
+      "p99_ms": "100.0",
+      "exit_code": "0",
+      "final_log_requests": 147,
+      "history_samples": 56,
+      "history_span_seconds": 55,
+      "final_html_requests": 147,
+      "final_html_rps": 2.46,
+      "start_time": "2026-10-21T02:37:13Z",
+      "end_time": "2026-10-21T02:38:13Z"
+    },
+    {
+      "phase": "baseline",
+      "users": "10",
+      "duration_seconds": "120",
+      "requests": "596",
+      "failures": "0",
+      "failure_percent": "0.0",
+      "rps": "5.01",
+      "p50_ms": "5.0",
+      "p95_ms": "85.0",
+      "p99_ms": "90.0",
+      "exit_code": "0",
+      "final_log_requests": 598,
+      "history_samples": 116,
+      "history_span_seconds": 115,
+      "final_html_requests": 598,
+      "final_html_rps": 4.99,
+      "start_time": "2026-10-21T02:38:17Z",
+      "end_time": "2026-10-21T02:40:17Z"
+    },
+    {
+      "phase": "main",
+      "users": "30",
+      "duration_seconds": "300",
+      "requests": "4437",
+      "failures": "0",
+      "failure_percent": "0.0",
+      "rps": "14.82",
+      "p50_ms": "3.0",
+      "p95_ms": "82.0",
+      "p99_ms": "88.0",
+      "exit_code": "0",
+      "final_log_requests": 4441,
+      "history_samples": 296,
+      "history_span_seconds": 295,
+      "final_html_requests": 4441,
+      "final_html_rps": 14.82,
+      "start_time": "2026-10-21T02:40:25Z",
+      "end_time": "2026-10-21T02:45:24Z"
+    },
+    {
+      "phase": "high",
+      "users": "60",
+      "duration_seconds": "300",
+      "requests": "8765",
+      "failures": "0",
+      "failure_percent": "0.0",
+      "rps": "29.27",
+      "p50_ms": "3.0",
+      "p95_ms": "82.0",
+      "p99_ms": "91.0",
+      "exit_code": "0",
+      "final_log_requests": 8772,
+      "history_samples": 296,
+      "history_span_seconds": 295,
+      "final_html_requests": 8772,
+      "final_html_rps": 29.27,
+      "start_time": "2026-10-21T02:45:38Z",
+      "end_time": "2026-10-21T02:50:38Z"
+    }
+  ],
+  "endpoints": {
+    "GET /api/orders/me": {
+      "requests": 1392,
+      "failures": 0
+    },
+    "GET /api/products": {
+      "requests": 8318,
+      "failures": 0
+    },
+    "GET /api/products/{id}": {
+      "requests": 2105,
+      "failures": 0
+    },
+    "POST /api/auth/login": {
+      "requests": 1420,
+      "failures": 0
+    },
+    "POST /api/orders": {
+      "requests": 708,
+      "failures": 0
+    }
+  },
+  "csv_requests": 13943,
+  "final_log_requests": 13958,
+  "redact_before_publish": [
+    "single_store_load/20261021T023505Z/api.log"
+  ]
+}

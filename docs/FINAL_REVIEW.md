@@ -9,22 +9,31 @@ nhánh finalize/phase1-single-store; dùng SHA của commit trên nhánh đó đ
 không dùng SHA 28e42d7 để tuyên bố đã chứa những sửa mới. Không tự merge vào main.
 
 Chức năng baseline một cửa hàng đã có trong code, không cần mở rộng thêm nghiệp
-vụ để đạt đề bài. **Chưa nghiệm thu hoàn toàn phiên bản sửa này**: cần Maven verify,
-CI/MySQL thật và kết quả Kaggle của đúng commit sau khi commit/push.
+vụ để đạt đề bài. **CI đã xanh cho commit 941ec24a8158a5bf072d823a129abff5415d0c30**:
+Maven verify/ArchUnit/Python và Compose MySQL/Flyway/checkout đồng thời đều pass.
+Đã đối chiếu ZIP Kaggle gốc: CRC hợp lệ, metadata đúng commit, đủ bốn pha,
+CSV/HTML/log khớp theo từng loại snapshot, không có failure/exception được ghi nhận.
+**Đủ chức năng và minh chứng nghiệm thu Pha 1 theo đề bài đã cung cấp.**
+Đây là baseline một cửa hàng, không phải tuyên bố tối ưu hoặc sẵn sàng production.
+Báo cáo cuối và minh chứng: [performance/REPORT.md](../performance/REPORT.md).
+Phần bàn giao Git còn push minh chứng và review/merge; không tự merge main.
+
+Run đã kiểm tra qua GitHub API (job test và mysql đều completed/success):
+https://github.com/khoizz247/store_ktpm/actions/runs/39525419290.
 
 ## Đối chiếu đề bài
 
 | Yêu cầu | Bằng chứng trong dự án | Trạng thái |
 |---|---|---|
 | REST/JSON, POST/GET/DELETE | Auth, Product, Cart, Order controllers | Có code và test |
-| OpenAPI/Swagger | OpenApiConfig, springdoc, /v3/api-docs | Có cấu hình; kiểm tra live sau build |
-| API → nghiệp vụ → dữ liệu | Controller/service/port/adapter, CurrentUserService bổ sung | Có; ArchUnit chưa chạy được lượt này |
+| OpenAPI/Swagger | OpenApiConfig, springdoc, /v3/api-docs | CI readiness đã pass |
+| API → nghiệp vụ → dữ liệu | Controller/service/port/adapter, CurrentUserService bổ sung | Có; ArchUnit pass trên CI |
 | Business không import web/DB | application/domain chỉ dùng Java và port/model | Review source; có bốn rule tự động |
 | Repository + ORM/data mapper | JPA bốn bảng, JDBC giỏ/audit/search | Có |
 | Login và GET/POST cần xác thực | JWT filter; GET /users/me, POST /orders | Có test quyền/JWT |
-| Docker | Dockerfile, Compose MySQL8.4 + API, healthcheck | Có; chưa chạy lại lượt sửa này |
+| Docker | Dockerfile, Compose MySQL8.4 + API, healthcheck | Build/start/readiness pass trên CI |
 | Public GitHub/README | remote store_ktpm; README + API_SPEC + ARCHITECTURE | Có Git remote; không đổi visibility trong lượt này |
-| Kiểm thử tải Kaggle CPU | performance notebook/runner/workload/report | Bổ sung mã chạy; CHƯA có kết quả mới |
+| Kiểm thử tải Kaggle CPU | Run 20261021T023505Z, metadata/CSV/HTML/log | Đã đối chiếu ZIP gốc đủ bốn pha |
 
 Các lớp test thật có thể tồn tại dù chưa được chạy trong phiên này. Tồn tại test
 không đồng nghĩa test đã pass, và H2 pass không chứng minh Flyway MySQL đúng.
@@ -40,7 +49,7 @@ không đồng nghĩa test đã pass, và H2 pass không chứng minh Flyway MyS
   merge. Sửa isolation/cleanup test, validate item null, giới hạn tiền và actor audit.
 - D: JDBC/transaction, giỏ/checkout, Docker/Flyway, script readiness và test
   checkout rollback/cạnh tranh đã có. Hoàn thiện D7 ArchUnit/Failsafe/CI và bộ
-  chạy Kaggle. D7 cần CI xanh; phần tải cần chạy Kaggle trước khi đánh dấu hoàn tất.
+  chạy Kaggle. D7 đã có CI xanh ở 941ec24; phần tải đã đủ CSV/HTML/log và đối chiếu ZIP.
 
 Đây là đánh giá theo code đã nhận, không phải kết luận mọi tình huống của từng
 thành viên đều đúng. Không sửa lịch sử tác giả/ngày commit hoặc xóa công việc của nhóm.
@@ -84,17 +93,30 @@ xóa có thể khôi phục từ Git; schema thực vẫn do Flyway/H2 init qu�
 - **PASS**: parser cú pháp Java21 cho 84 source file; không thay kiểm tra kiểu/JUnit.
 - **PASS**: cú pháp Python, code cell notebook, POM XML, cấu trúc workflow YAML và
   Python nhúng trong CI; git diff --check; không còn file conflict.
-- **CHƯA XÁC NHẬN JAVA**: Maven dừng ở compiler với AccessDeniedException khi JDK
+- **LOCAL BỊ CHẶN**: Maven dừng ở compiler với AccessDeniedException khi JDK
   đóng ZipFileSystem của JAR dependency. Không có tổng số test Java pass mới.
   Đã thử cache/bản làm việc riêng và compiler fork; không đổi ACL hoặc bỏ test để che lỗi.
-- **CHƯA CHẠY DOCKER**: phiên công cụ hiện tại không tìm thấy Docker CLI; không
+- **LOCAL KHÔNG CHẠY DOCKER**: phiên công cụ hiện tại không tìm thấy Docker CLI; không
   suy ra Docker Desktop trên máy người dùng chưa cài/hỏng. Không đụng container đang dùng.
-- **CHƯA CHẠY KAGGLE/CI MỚI**: không có CSV hiệu năng/Actions mới của working tree.
-  Log xanh/benchmark của phiên bản cũ không phải bằng chứng phiên bản sửa này.
+- **PASS CI 941ec24**: job test chạy Maven verify (Surefire/Failsafe + ArchUnit),
+  12 test Python smoke script và 2 test report converter; tất cả bước thành công.
+  Chưa tải XML report nên không ghi một tổng số JUnit suy đoán.
+- **PASS MYSQL THẬT TRÊN CI 941ec24**: build/start Compose mới, API/MySQL healthy,
+  schema sáu bảng và Flyway V1/V2, OpenAPI, bootstrap admin login và hai checkout
+  cạnh tranh đều thành công. Job cleanup thành công, không dùng volume demo local.
+- **PASS ĐỐI CHIẾU KAGGLE 941ec24**: CRC ZIP hợp lệ, 28 file nguồn, đúng metadata;
+  đủ bốn pha 5/10/30/60 user và exit code 0. CSV snapshot có 13.943 request,
+  0 thất bại, RPS 2,46 → 29,27; p95 82–87 ms. HTML/log cuối khớp nhau ở 13.958
+  request, 0 thất bại; chênh 15 với CSV được ghi rõ, không sửa/trộn số liệu.
+  Tám file failure/exception rỗng ngoài header, api.log không có ERROR/stack trace,
+  profile mysql/Flyway V1/V2 thành công và shutdown bình thường. Bản công khai
+  chỉ che mật khẩu phát triển ngẫu nhiên trong api.log; giữ nguyên các CSV/HTML.
 
-## Các bước còn lại trước khi chốt
+## Tái kiểm tra và bàn giao
 
-Từ terminal IntelliJ của repository, dùng JDK21, không bật profile MySQL cho test:
+CI đã nghiệm thu phần build/test/Docker cho 941ec24. Các lệnh local bên dưới là
+cách tái kiểm tra, không phải bằng chứng rằng CI chưa chạy. Dùng JDK21, không bật
+profile MySQL cho test:
 
 ```powershell
 .\mvnw.cmd clean verify
@@ -122,8 +144,30 @@ python scripts/verify_mysql.py --base-url http://localhost:18082 --exercise-cart
 
 Đối chiếu Swagger/demo.http: admin login → tạo sản phẩm → customer register → đặt
 hoặc checkout → stock giảm → hủy PENDING → stock hoàn đúng → hủy lại không hoàn thêm.
-Sau verify local, commit/push và xem cả hai job Actions. Chạy Kaggle theo
-performance/README.md cho đúng commit, review CSV/log và lưu minh chứng mới chốt Pha 1.
+Hai job Actions đã xanh và Kaggle đã được đối chiếu cho
+941ec24a8158a5bf072d823a129abff5415d0c30. Các thay đổi bàn giao sau benchmark chỉ
+gồm tài liệu, minh chứng và thuộc tính giữ nguyên byte dữ liệu; không đổi mã chạy
+ứng dụng hoặc workload được đo. Còn commit/push minh chứng, review nhánh,
+CI của commit bàn giao và merge theo quy trình nhóm; không tự merge.
+
+### Số liệu đã đối chiếu từ CSV gốc
+
+| Pha | Users | Giây | Requests | Thất bại | RPS | p50 ms | p95 ms | p99 ms |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| smoke | 5 | 60 | 145 | 0 | 2,46 | 8 | 87 | 100 |
+| baseline | 10 | 120 | 596 | 0 | 5,01 | 5 | 85 | 90 |
+| main | 30 | 300 | 4437 | 0 | 14,82 | 3 | 82 | 88 |
+| high | 60 | 300 | 8765 | 0 | 29,27 | 3 | 82 | 91 |
+
+Tổng CSV 13.943; HTML/log cuối 13.958. RPS baseline của HTML cuối là 4,99 thay
+vì 5,01 ở CSV snapshot; các giá trị còn lại được trình bày theo đúng nguồn tại
+performance/REPORT.md. Không lấy số từ hai snapshot ghép thành một bảng giả.
+
+Môi trường theo metadata/log: Kaggle CPU 4 luồng, RAM 31,35 GiB; Java21.0.12.1,
+MySQL8.0.46, Locust2.32.1/Python3.13.15. API/MySQL/Locust cùng máy, mỗi user
+có sản phẩm riêng và dữ liệu tăng giữa các pha. Trong workload đã đo chưa thấy
+p95 xấu đi khi tăng user, nhưng không suy ra thông lượng tối đa/độ trễ production,
+khả năng chịu hotspot SKU hoặc không có lỗi ngoài phạm vi bài đo.
 ArchUnit đã có code; không có Testcontainers hay Postman/Newman trong bản nhóm
 này. Hai công cụ đó không phải yêu cầu tối thiểu của đề bài đã cung cấp; nếu nhóm
 đã cam kết chúng trong kế hoạch riêng thì không đánh dấu mục đó hoàn thành.

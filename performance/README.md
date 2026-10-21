@@ -1,7 +1,8 @@
 # Kaggle CPU — baseline của repository nhóm
 
-Chưa có số liệu đo mới trong thư mục này. Không copy CSV/report của sales-service
-hay single-store-service rồi đổi tên: kết quả phải ghi đúng commit store_ktpm.
+Đã có [báo cáo nghiệm thu](REPORT.md) và [minh chứng Kaggle 21/10/2026](results/20261021T023505Z)
+cho commit `941ec24`. Đã đối chiếu ZIP/metadata/CSV/HTML/log. Không copy CSV/report
+của sales-service hay single-store-service rồi đổi tên: kết quả phải đúng commit store_ktpm.
 Bộ runner/workload/report được tái sử dụng và điều chỉnh từ performance của
 sales-service: database single_store_team, sáu bảng, Flyway V1/V2, JAR single-store,
 API sản phẩm/đơn và admin bootstrap của repository nhóm.
