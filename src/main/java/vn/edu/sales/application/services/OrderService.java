@@ -32,6 +32,8 @@ public class OrderService {
     public Order create(String customerEmail, String recipientName, String recipientPhone,
                         String shippingAddress, List<CreateLine> lines) {
         if (lines == null || lines.isEmpty()) throw new IllegalArgumentException("Đơn hàng phải có sản phẩm");
+        if (lines.stream().anyMatch(line -> line == null || line.productId() == null || line.quantity() < 1))
+            throw new IllegalArgumentException("Sản phẩm và số lượng trong đơn hàng không hợp lệ");
         Set<Long> uniqueIds = lines.stream().map(CreateLine::productId).collect(Collectors.toSet());
         if (uniqueIds.size() != lines.size()) throw new IllegalArgumentException("Không được lặp sản phẩm trong đơn hàng");
 
@@ -57,6 +59,9 @@ public class OrderService {
                         line.quantity(), product.price().multiply(BigDecimal.valueOf(line.quantity()))));
             }
 
+            BigDecimal total = items.stream().map(OrderItem::lineTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
+            if (total.compareTo(new BigDecimal("9999999999999.99")) > 0)
+                throw new BusinessConflictException("Tổng tiền vượt giới hạn đơn hàng");
             productRepository.saveAll(changedProducts);
             Order saved = orderRepository.save(new Order(null, newOrderCode(), user.id(), recipientName,
                     recipientPhone, shippingAddress, OrderStatus.PENDING, null, null, null, items));
@@ -128,11 +133,14 @@ public class OrderService {
         return search(null, status, code, page, size);
     }
 
-    public Order changeStatus(Long id, OrderStatus nextStatus) {
+    public Order changeStatus(String actorEmail, Long id, OrderStatus nextStatus) {
         return transactionRunner.execute(() -> {
+            User actor = userRepository.findByEmail(actorEmail.toLowerCase(Locale.ROOT))
+                    .filter(user -> user.role() == Role.ADMIN && user.status() == UserStatus.ACTIVE)
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ADMIN đang hoạt động"));
             Order order = orderRepository.findByIdForUpdate(id)
                     .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng: " + id));
-            return changeStatusLocked(order, nextStatus, null);
+            return changeStatusLocked(order, nextStatus, actor.id());
         });
     }
 
@@ -161,7 +169,10 @@ public class OrderService {
         List<Product> changed = order.items().stream().map(item -> {
             Product product = products.get(item.productId());
             if (product == null) throw new BusinessConflictException("Không thể hoàn kho sản phẩm: " + item.productId());
-            return product.withStock(product.stockQuantity() + item.quantity());
+            long restored = (long) product.stockQuantity() + item.quantity();
+            if (restored > Integer.MAX_VALUE)
+                throw new BusinessConflictException("Tồn kho sau hoàn trả vượt giới hạn");
+            return product.withStock((int) restored);
         }).toList();
         productRepository.saveAll(changed);
         for (OrderItem item : order.items()) {

@@ -1,35 +1,109 @@
-name: Base build
-
+name: Verify architecture and MySQL
 on:
   push:
   pull_request:
-
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   test:
     runs-on: ubuntu-latest
-
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: 12345
-          MYSQL_DATABASE: store_test_db
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -p12345"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
-
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
+      - name: Verify unit, architecture and integration tests
+        run: bash mvnw -B --no-transfer-progress verify
+      - name: Verify smoke-script unit tests
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
+      - name: Verify load report generator
+        run: python3 -m unittest performance.test_report
+      - name: Save Java test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: java-test-reports
+          path: |
+            target/surefire-reports/
+            target/failsafe-reports/
+          if-no-files-found: warn
 
-      - name: Verify base
-        run: bash mvnw -B verify
+  mysql:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      COMPOSE_PROJECT_NAME: single-store-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      MYSQL_USER: single_store_ci_user
+      MYSQL_HOST_PORT: '13309'
+      API_HOST_PORT: '18091'
+      BOOTSTRAP_ADMIN_EMAIL: ci-admin@example.test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate credentials for this disposable database
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64
+          import os
+          import secrets
+          values = {
+              "MYSQL_PASSWORD": secrets.token_hex(24),
+              "MYSQL_ROOT_PASSWORD": secrets.token_hex(24),
+              "JWT_SECRET": base64.b64encode(secrets.token_bytes(48)).decode("ascii"),
+              "BOOTSTRAP_ADMIN_PASSWORD": "Ci@9" + secrets.token_hex(20),
+          }
+          for value in values.values():
+              print("::add-mask::" + value)
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as output:
+              for name, value in values.items():
+                  output.write(f"{name}={value}\n")
+          PY
+      - name: Validate Compose without printing secrets
+        run: docker compose --project-name "$COMPOSE_PROJECT_NAME" config --quiet
+      - name: Build and start fresh MySQL and API
+        run: docker compose --project-name "$COMPOSE_PROJECT_NAME" up --build -d --wait --wait-timeout 240
+      - name: Verify Flyway schema and API readiness
+        run: python3 scripts/verify_mysql.py --base-url "http://127.0.0.1:$API_HOST_PORT"
+      - name: Verify bootstrap admin can log in
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.request
+          body = json.dumps({
+              "email": os.environ["BOOTSTRAP_ADMIN_EMAIL"],
+              "password": os.environ["BOOTSTRAP_ADMIN_PASSWORD"],
+          }).encode("utf-8")
+          request = urllib.request.Request(
+              "http://127.0.0.1:" + os.environ["API_HOST_PORT"] + "/api/auth/login",
+              data=body, headers={"Content-Type": "application/json"}, method="POST")
+          with urllib.request.urlopen(request, timeout=30) as response:
+              result = json.load(response)
+              if response.status != 200 or result.get("role") != "ADMIN" or not result.get("accessToken"):
+                  raise RuntimeError("Bootstrap admin login failed")
+          print("PASS bootstrap admin login (token not printed).")
+          PY
+      - name: Verify competing checkout on real MySQL
+        run: python3 scripts/verify_mysql.py --base-url "http://127.0.0.1:$API_HOST_PORT" --exercise-cart-concurrently
+      - name: Show service logs on failure
+        if: failure()
+        run: |
+          docker compose --project-name "$COMPOSE_PROJECT_NAME" ps -a
+          docker compose --project-name "$COMPOSE_PROJECT_NAME" logs --no-color --tail=200 api mysql
+      - name: Remove only this job's disposable resources
+        if: always()
+        shell: bash
+        run: |
+          case "$COMPOSE_PROJECT_NAME" in
+            single-store-ci-[0-9]*-[0-9]*) ;;
+            *) echo "Refusing cleanup: unexpected project name"; exit 1 ;;
+          esac
+          docker compose --project-name "$COMPOSE_PROJECT_NAME" down --volumes --remove-orphans

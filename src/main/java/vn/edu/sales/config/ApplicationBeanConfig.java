@@ -6,12 +6,18 @@ import vn.edu.sales.application.port.out.*;
 import vn.edu.sales.application.service.InventoryService;
 import vn.edu.sales.application.service.ProductService;
 import vn.edu.sales.application.services.AuthService;
+import vn.edu.sales.application.services.CurrentUserService;
 import vn.edu.sales.application.services.CartService;
 import vn.edu.sales.application.services.OrderService;
 import vn.edu.sales.application.services.PasswordChangeService;
 
 @Configuration
 public class ApplicationBeanConfig {
+    @Bean
+    CurrentUserService currentUserService(UserRepository users) {
+        return new CurrentUserService(users);
+    }
+
     @Bean
     CartService cartService(CartStore carts, UserRepository users, ProductRepository products,
                             OrderService orders, TransactionRunner transactions) {

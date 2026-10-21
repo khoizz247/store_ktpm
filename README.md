@@ -1,24 +1,26 @@
 # Single Store Service
 
 Backend quản lý bán hàng cho một cửa hàng, sử dụng Java và Spring Boot.
-Phiên bản hiện tại có model/port, JPA adapter cho user/product/order,
-JWT infrastructure và nền tảng transaction/biến động kho. API nghiệp vụ
-đầy đủ đang được tích hợp; `/api/health` vẫn công khai.
+Phạm vi: một cửa hàng, một tồn kho cho mỗi sản phẩm, hai vai trò CUSTOMER/ADMIN.
+Không quản lý chi nhánh, thanh toán online hay vận chuyển bên thứ ba.
 
 ## Công nghệ và chức năng hiện tại
 
 - Java 21, Spring Boot 3.5.0, REST JSON và validation dependency.
-- `GET /api/health`, Swagger, test khởi động/health và unit test AuthService.
+- Đăng ký CUSTOMER, đăng nhập JWT, xem tài khoản và đổi mật khẩu.
+- CRUD/soft delete sản phẩm, phân trang/tìm tên hoặc SKU và audit tồn kho.
+- Giỏ hàng, checkout, tạo/xem/tìm đơn, khách hủy đơn PENDING, admin quản lý trạng thái.
+- Tổng tiền lấy từ database; snapshot tên/giá, trừ/hoàn kho trong cùng transaction.
 - H2 mặc định: Hibernate tạo bốn bảng JPA trước, `schema-h2.sql` tạo
   `cart_items` và `inventory_movements` sau. Flyway tắt, seed demo bật ở H2.
 - `SpringTransactionRunner` và `JdbcInventoryStore`, cùng integration test
   commit/rollback JPA + JDBC, audit và ràng buộc dữ liệu.
 - Maven Wrapper, Dockerfile, Compose API + MySQL và CI build/test.
-- Tài liệu kiến trúc phân tầng.
+- Tài liệu kiến trúc phân tầng và đặc tả API/quyền truy cập.
 
-Auth API, ProductController B4, API tạo/xem/tìm/hủy đơn C4/C5 đã tích hợp.
-Gói D5 bổ sung API giỏ và checkout, dùng lại transaction tạo đơn và audit.
-Hướng dẫn và JSON demo: [CART_API.md](docs/CART_API.md).
+Danh sách API/quyền, quy tắc và response: [API_SPEC.md](docs/API_SPEC.md).
+Request mẫu cho IntelliJ HTTP Client: [demo.http](docs/demo.http).
+Hướng dẫn giỏ và JSON demo: [CART_API.md](docs/CART_API.md).
 Chi tiết: [CART_AND_ORDER_SEARCH.md](docs/CART_AND_ORDER_SEARCH.md).
 Profile MySQL đã chuẩn bị cho `single_store_team` tại cổng `3309`, dùng
 Flyway và Hibernate `validate`; Compose dùng MySQL, không dùng H2.
@@ -35,6 +37,11 @@ Yêu cầu JDK 21 trở lên. Chạy IntelliJ mặc định ở cổng 18080.
 Có thể đổi cổng bằng biến môi trường `SERVER_PORT`.
 Swagger: `http://localhost:18080/swagger-ui.html`.
 
+H2 là database RAM phục vụ học/demo, không phải MySQL. Tài khoản seed H2:
+`admin@example.com` / `Admin@123` (chỉ local). MySQL không tạo tài khoản này;
+admin MySQL dùng BOOTSTRAP_ADMIN_EMAIL/PASSWORD riêng trước lần khởi động đầu.
+Không commit `.env` hoặc mật khẩu thật. Xem hướng dẫn Docker bên dưới.
+
 Docker mặc định dùng API 18081, MySQL 3309. Chuẩn bị .env riêng trước khi chạy;
 thông tin đầy đủ và kiểm chứng tại [DOCKER_MYSQL.md](docs/DOCKER_MYSQL.md).
 
@@ -49,5 +56,25 @@ Swagger khi chạy Docker: `http://localhost:18081/swagger-ui.html`.
 
 ## Kiến trúc
 
-Kiến trúc mục tiêu phân tách API, nghiệp vụ và truy cập dữ liệu.
+API → application service → repository/port → JPA/JDBC → database.
+Business/domain không import Spring, web hoặc DB; config nối bean.
 Chi tiết trong [ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Kiểm thử và CI
+
+`mvnw verify` chạy Test bằng Surefire và IT bằng Failsafe, gồm kiểm tra kiến trúc
+ArchUnit. Workflow có job Java/Python test và job Compose MySQL riêng theo mỗi
+lượt chạy. Không dùng .env hoặc volume demo của nhóm trên CI.
+Hướng dẫn, phạm vi rule và cách nghiệm thu: [CI_ARCHITECTURE.md](docs/CI_ARCHITECTURE.md).
+
+Maven mặc định dùng H2 riêng cho test, không cần MySQL trên cổng 3306 và không
+đọc mật khẩu database trong `.env`. MySQL thật được kiểm tra bằng job Compose
+riêng và script readiness/smoke. Test H2 không chứng minh migration MySQL đúng.
+
+## Nghiệm thu Pha 1
+
+Tình trạng, các sửa lỗi và phần cần xác nhận thực tế: [FINAL_REVIEW.md](docs/FINAL_REVIEW.md).
+Không dùng kết quả Kaggle của repository tham chiếu để kết luận hiệu năng bản nhóm.
+Runner, notebook và cách thu CSV: [performance/README.md](performance/README.md).
+Chỉ chốt toàn bộ Pha 1 khi CI của đúng commit xanh và có kết quả Kaggle CPU
+CSV/báo cáo gắn với đúng phiên bản này.

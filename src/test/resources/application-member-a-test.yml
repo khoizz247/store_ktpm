@@ -1,0 +1,23 @@
+# Dedicated disposable H2 database; no MySQL or .env credentials are used.
+spring:
+  datasource:
+    url: jdbc:h2:mem:member-a-test;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  flyway:
+    enabled: false
+  jpa:
+    defer-datasource-initialization: true
+    hibernate:
+      ddl-auto: create-drop
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema-h2.sql
+app:
+  seed:
+    enabled: false
+  jwt:
+    secret: c2luZ2xlLXN0b3JlLXRlc3Qtb25seS1rZXktbm90LWZvci1wcm9kdWN0aW9uLTIwMjY=
+    expiration-ms: 3600000

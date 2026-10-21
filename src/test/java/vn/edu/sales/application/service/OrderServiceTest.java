@@ -40,6 +40,9 @@ class OrderServiceTest {
             }
         };
         service = new OrderService(orders, products, users, transactions, inventory, searches);
+        when(users.findByEmail("admin@example.com"))
+                .thenReturn(Optional.of(new User(4L, "admin@example.com", "hash",
+                        "Admin", Role.ADMIN, UserStatus.ACTIVE, null)));
         when(users.findByEmail("customer@example.com"))
                 .thenReturn(Optional.of(new User(3L, "customer@example.com", "hash",
                         "Customer", Role.CUSTOMER, UserStatus.ACTIVE, null)));
@@ -127,12 +130,12 @@ class OrderServiceTest {
         when(orders.save(any(Order.class))).thenAnswer(call -> call.getArgument(0));
         when(products.findAllByIdsForUpdate(List.of(11L))).thenReturn(List.of(keyboard));
 
-        assertThat(service.changeStatus(21L, OrderStatus.CANCELLED).status()).isEqualTo(OrderStatus.CANCELLED);
-        assertThat(service.changeStatus(21L, OrderStatus.CANCELLED).status()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(service.changeStatus("admin@example.com", 21L, OrderStatus.CANCELLED).status()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(service.changeStatus("admin@example.com", 21L, OrderStatus.CANCELLED).status()).isEqualTo(OrderStatus.CANCELLED);
 
         verify(products, times(1)).saveAll(argThat(list -> list.getFirst().stockQuantity() == 7));
         verify(inventory, times(1)).record(eq(11L), eq(21L), eq("SALE_REVERSAL"), eq(2),
-                eq(5), eq(7), anyString(), anyString(), isNull());
+                eq(5), eq(7), anyString(), anyString(), eq(4L));
         verify(orders, times(1)).save(any(Order.class));
     }
 
@@ -152,7 +155,7 @@ class OrderServiceTest {
     @Test
     void invalidTransitionReturnsConflict() {
         when(orders.findByIdForUpdate(21L)).thenReturn(Optional.of(order(OrderStatus.PENDING)));
-        assertThatThrownBy(() -> service.changeStatus(21L, OrderStatus.COMPLETED))
+        assertThatThrownBy(() -> service.changeStatus("admin@example.com", 21L, OrderStatus.COMPLETED))
                 .isInstanceOf(BusinessConflictException.class);
 
         verify(products, never()).saveAll(anyList());
@@ -166,10 +169,10 @@ class OrderServiceTest {
         when(orders.save(any(Order.class))).thenAnswer(call -> call.getArgument(0));
         when(products.findAllByIdsForUpdate(List.of(11L))).thenReturn(List.of(keyboard));
 
-        Order result = service.changeStatus(21L, OrderStatus.CANCELLED);
+        Order result = service.changeStatus("admin@example.com", 21L, OrderStatus.CANCELLED);
         assertThat(result.status()).isEqualTo(OrderStatus.CANCELLED);
         verify(inventory, times(1)).record(eq(11L), eq(21L),
-                eq("SALE_REVERSAL"), anyInt(), anyInt(), anyInt(), anyString(), anyString(), isNull());
+                eq("SALE_REVERSAL"), anyInt(), anyInt(), anyInt(), anyString(), anyString(), eq(4L));
     }
 
     @Test
@@ -177,7 +180,7 @@ class OrderServiceTest {
         Order shipping = order(OrderStatus.SHIPPING);
         when(orders.findByIdForUpdate(21L)).thenReturn(Optional.of(shipping));
 
-        assertThatThrownBy(() -> service.changeStatus(21L, OrderStatus.CANCELLED))
+        assertThatThrownBy(() -> service.changeStatus("admin@example.com", 21L, OrderStatus.CANCELLED))
                 .isInstanceOf(BusinessConflictException.class);
 
         verify(products, never()).saveAll(anyList());
@@ -189,12 +192,36 @@ class OrderServiceTest {
         Order pending = order(OrderStatus.PENDING);
         when(orders.findByIdForUpdate(21L)).thenReturn(Optional.of(pending));
 
-        Order result = service.changeStatus(21L, OrderStatus.PENDING);
+        Order result = service.changeStatus("admin@example.com", 21L, OrderStatus.PENDING);
         assertThat(result.status()).isEqualTo(OrderStatus.PENDING);
 
         verify(orders, never()).save(any(Order.class));
         verify(inventory, never()).record(anyLong(), anyLong(), anyString(), anyInt(), anyInt(), anyInt(),
                 anyString(), anyString(), any());
+    }
+
+    @Test
+    void invalidLinesAreRejectedBeforeOpeningATransaction() {
+        for (List<OrderService.CreateLine> lines : List.of(
+                java.util.Arrays.asList((OrderService.CreateLine) null),
+                List.of(new OrderService.CreateLine(null, 1)),
+                List.of(new OrderService.CreateLine(11L, 0)))) {
+            assertThatThrownBy(() -> service.create("customer@example.com", "Receiver", "0901234567", "Address", lines))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+        verifyNoInteractions(products, orders, inventory);
+    }
+
+    @Test
+    void cancellationStockOverflowLeavesOrderAndInventoryUnchanged() {
+        when(orders.findByIdForUpdate(21L)).thenReturn(Optional.of(order(OrderStatus.PENDING)));
+        when(products.findAllByIdsForUpdate(List.of(11L)))
+                .thenReturn(List.of(keyboard.withStock(Integer.MAX_VALUE)));
+        assertThatThrownBy(() -> service.cancelMine("customer@example.com", 21L))
+                .isInstanceOf(BusinessConflictException.class);
+        verify(products, never()).saveAll(anyList());
+        verify(orders, never()).save(any());
+        verifyNoInteractions(inventory);
     }
 
     private Order order(OrderStatus status) {

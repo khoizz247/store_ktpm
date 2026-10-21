@@ -10,6 +10,7 @@ import vn.edu.sales.domain.model.User;
 import vn.edu.sales.domain.model.UserStatus;
 
 import java.util.Locale;
+import java.nio.charset.StandardCharsets;
 
 public class AuthService {
     private final UserRepository userRepository;
@@ -22,6 +23,9 @@ public class AuthService {
     }
 
     public AuthResult register(String fullName, String email, String rawPassword) {
+        if (rawPassword == null || rawPassword.getBytes(StandardCharsets.UTF_8).length > 72) {
+            throw new IllegalArgumentException("Mật khẩu không được vượt quá 72 byte UTF-8");
+        }
         String normalizedEmail = normalizeEmail(email);
         if (userRepository.existsByEmail(normalizedEmail)) {
             throw new BusinessConflictException("Email đã được sử dụng");
