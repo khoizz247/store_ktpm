@@ -1,4 +1,4 @@
-# IntelliJ HTTP Client. Docker: change port to API_HOST_PORT (e.g. 18082).
+# Cart/checkout flow for IntelliJ HTTP Client. Docker: use API_HOST_PORT (e.g. 18082).
 # H2 only: admin@example.com / Admin@123. MySQL: your local bootstrap credentials.
 # Use a fresh SKU/email per independent run. Do NOT commit real credentials/tokens.
 @base = http://localhost:18080

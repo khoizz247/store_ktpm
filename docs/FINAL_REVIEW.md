@@ -42,7 +42,7 @@ không đồng nghĩa test đã pass, và H2 pass không chứng minh Flyway MyS
 
 - A: auth, JWT/filter, /me, đổi mật khẩu, handler lỗi; unit/integration test A5–A7
   đã lên main. Bổ sung profile member-a-test riêng và test handler database còn thiếu.
-  API_SPEC/demo.http bổ sung tài liệu/quyền demo cho phần A8.
+  API_SPEC/checkout-demo.http bổ sung tài liệu/quyền demo cho phần A8.
 - B: sản phẩm, phân trang/tìm kiếm, soft delete, inventory API và test đã lên main.
   Sửa validation giá/tồn kho và version trong response cập nhật.
 - C: API tạo/xem/tìm/hủy đơn và admin quản lý đơn, unit/API/concurrency test đã
@@ -76,7 +76,7 @@ thành viên đều đúng. Không sửa lịch sử tác giả/ngày commit ho�
 10. Product update trả version trước flush: saveAndFlush trước ánh xạ response.
 11. /users/me: đi qua CurrentUserService thay vì controller đọc repository trực tiếp.
 12. Bổ sung regression API/unit test, handler test cho lỗi DB/locking, API_SPEC và
-    demo.http; cập nhật các mô tả tiến độ đã lỗi thời.
+    checkout-demo.http; cập nhật các mô tả tiến độ đã lỗi thời.
 13. CI chạy verify (Surefire + Failsafe), ArchUnit và Python; job MySQL tạo database
     trong Compose project riêng, credential ngẫu nhiên, không phụ thuộc .env cá nhân.
 14. Thêm runner/notebook Kaggle đúng schema V1/V2 và sáu bảng; converter không
@@ -142,7 +142,7 @@ chỉ chạy trên DB demo lúc không có người khác sử dụng:
 python scripts/verify_mysql.py --base-url http://localhost:18082 --exercise-cart-concurrently
 ```
 
-Đối chiếu Swagger/demo.http: admin login → tạo sản phẩm → customer register → đặt
+Đối chiếu Swagger/checkout-demo.http: admin login → tạo sản phẩm → customer register → đặt
 hoặc checkout → stock giảm → hủy PENDING → stock hoàn đúng → hủy lại không hoàn thêm.
 Hai job Actions đã xanh và Kaggle đã được đối chiếu cho
 941ec24a8158a5bf072d823a129abff5415d0c30. Các thay đổi bàn giao sau benchmark chỉ
