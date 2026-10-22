@@ -1,12 +1,12 @@
-# Rà soát chốt Pha 1 — 21/10/2026
+# Rà soát chốt Pha 1 — cập nhật 22/10/2026
 
 ## Kết luận
 
-Đã cập nhật repository nhóm từ a157e79 tới origin/main **28e42d7** bằng
-fast-forward, giữ phần D7 đang làm dở. Các nhánh remote được fetch đều đã merge
-vào main tại thời điểm kiểm tra. Các sửa trong lượt rà soát được bàn giao trên
-nhánh finalize/phase1-single-store; dùng SHA của commit trên nhánh đó để nghiệm thu,
-không dùng SHA 28e42d7 để tuyên bố đã chứa những sửa mới. Không tự merge vào main.
+Ngày 21/10 đã cập nhật repository nhóm từ a157e79 tới main **28e42d7**, giữ phần
+D7 đang làm dở. Ngày 22/10 đã fetch và merge main mới nhất **c49b0f3** (C8 demo)
+vào nhánh **finalize/phase1-single-store**, không ghi đè lịch sử thành viên.
+Các sửa nghiệm thu vẫn nằm trên nhánh chốt; không tự merge ngược vào main.
+Dùng SHA nhánh chốt để review, không dùng SHA main c49b0f3 để tuyên bố đã có bản cuối.
 
 Chức năng baseline một cửa hàng đã có trong code, không cần mở rộng thêm nghiệp
 vụ để đạt đề bài. **CI đã xanh cho commit 941ec24a8158a5bf072d823a129abff5415d0c30**:
@@ -16,10 +16,35 @@ CSV/HTML/log khớp theo từng loại snapshot, không có failure/exception đ
 **Đủ chức năng và minh chứng nghiệm thu Pha 1 theo đề bài đã cung cấp.**
 Đây là baseline một cửa hàng, không phải tuyên bố tối ưu hoặc sẵn sàng production.
 Báo cáo cuối và minh chứng: [performance/REPORT.md](../performance/REPORT.md).
-Phần bàn giao Git còn push minh chứng và review/merge; không tự merge main.
+Minh chứng đã push trong **1f6df40**, CI của commit đó cũng completed/success:
+https://github.com/khoizz247/store_ktpm/actions/runs/39536542035.
+Repository đã xác nhận public qua GitHub API ngày 22/10. Chưa có PR nhánh chốt
+tại thời điểm kiểm tra; còn push bản sửa demo, CI commit mới và review/merge.
 
 Run đã kiểm tra qua GitHub API (job test và mysql đều completed/success):
 https://github.com/khoizz247/store_ktpm/actions/runs/39525419290.
+
+## Hoàn thiện tích hợp ngày 22/10
+
+- Giữ phần C8 nhưng sửa bước “Register Admin”: register công khai chỉ tạo CUSTOMER;
+  ADMIN phải từ seed H2 hoặc bootstrap MySQL đã có, không mở API nâng quyền.
+- Đổi hai tên `DEMO.http`/`demo.http` thành [order-demo.http](order-demo.http) và
+  [checkout-demo.http](checkout-demo.http), tránh trùng tên trên Windows; cập nhật link.
+- Thay placeholder token/ID thủ công trong C8 bằng biến HTTP Client. Cả hai luồng
+  có kiểm tra status; xác nhận tổng tiền, trạng thái, stock 10 → 8 → 10 và audit.
+  C8 thêm kiểm tra khách B không xem/hủy được đơn khách A (404), hủy lại 409.
+- Thêm [hướng dẫn demo](DEMO_GUIDE.md), environment H2 mẫu; credential Docker nằm
+  trong `http-client.private.env.json` bị Git bỏ qua. Giữ nguyên `.env` và volume.
+- **PASS local: 19 test Python** (12 smoke-script và 7 kiểm tra tĩnh HTTP demo),
+  **2 test report converter**. Các kiểm tra tĩnh không thay thế gọi API thật.
+- **PASS local: 39 handler JavaScript** được parse và chạy với fixture hợp lệ;
+  cả 39 từ chối status sai. Đây không phải chạy trong IntelliJ hay demo live.
+- **PASS**: SHA256 của 28 file minh chứng khớp manifest; application, Java tests,
+  migration, workload và workflow không đổi so với baseline đã CI/Kaggle nghiệm thu.
+- Docker CLI đã tìm thấy nhưng Linux Engine chưa chạy (named pipe không tồn tại),
+  nên không chạy lại Compose/demo live trong phiên này. Không xóa DB để kiểm thử.
+- **CI của commit sửa demo mới: chờ push và chạy**. Không lấy CI của commit cũ
+  để tuyên bố 7 test mới đã chạy trên GitHub. Review/merge main là bước bàn giao còn lại.
 
 ## Đối chiếu đề bài
 
@@ -32,7 +57,7 @@ https://github.com/khoizz247/store_ktpm/actions/runs/39525419290.
 | Repository + ORM/data mapper | JPA bốn bảng, JDBC giỏ/audit/search | Có |
 | Login và GET/POST cần xác thực | JWT filter; GET /users/me, POST /orders | Có test quyền/JWT |
 | Docker | Dockerfile, Compose MySQL8.4 + API, healthcheck | Build/start/readiness pass trên CI |
-| Public GitHub/README | remote store_ktpm; README + API_SPEC + ARCHITECTURE | Có Git remote; không đổi visibility trong lượt này |
+| Public GitHub/README | remote store_ktpm; README + API_SPEC + ARCHITECTURE | GitHub API xác nhận public ngày 22/10 |
 | Kiểm thử tải Kaggle CPU | Run 20261021T023505Z, metadata/CSV/HTML/log | Đã đối chiếu ZIP gốc đủ bốn pha |
 
 Các lớp test thật có thể tồn tại dù chưa được chạy trong phiên này. Tồn tại test
@@ -96,8 +121,8 @@ xóa có thể khôi phục từ Git; schema thực vẫn do Flyway/H2 init qu�
 - **LOCAL BỊ CHẶN**: Maven dừng ở compiler với AccessDeniedException khi JDK
   đóng ZipFileSystem của JAR dependency. Không có tổng số test Java pass mới.
   Đã thử cache/bản làm việc riêng và compiler fork; không đổi ACL hoặc bỏ test để che lỗi.
-- **LOCAL KHÔNG CHẠY DOCKER**: phiên công cụ hiện tại không tìm thấy Docker CLI; không
-  suy ra Docker Desktop trên máy người dùng chưa cài/hỏng. Không đụng container đang dùng.
+- **LOCAL CHƯA CHẠY DOCKER**: ngày 21/10 không tìm thấy CLI; ngày 22/10 đã tìm thấy
+  CLI nhưng Docker Linux Engine chưa chạy. Không đụng container/volume đang dùng.
 - **PASS CI 941ec24**: job test chạy Maven verify (Surefire/Failsafe + ArchUnit),
   12 test Python smoke script và 2 test report converter; tất cả bước thành công.
   Chưa tải XML report nên không ghi một tổng số JUnit suy đoán.
@@ -146,9 +171,10 @@ python scripts/verify_mysql.py --base-url http://localhost:18082 --exercise-cart
 hoặc checkout → stock giảm → hủy PENDING → stock hoàn đúng → hủy lại không hoàn thêm.
 Hai job Actions đã xanh và Kaggle đã được đối chiếu cho
 941ec24a8158a5bf072d823a129abff5415d0c30. Các thay đổi bàn giao sau benchmark chỉ
-gồm tài liệu, minh chứng và thuộc tính giữ nguyên byte dữ liệu; không đổi mã chạy
-ứng dụng hoặc workload được đo. Còn commit/push minh chứng, review nhánh,
-CI của commit bàn giao và merge theo quy trình nhóm; không tự merge.
+gồm tài liệu, minh chứng, kiểm tra tĩnh HTTP demo và thuộc tính giữ nguyên byte
+dữ liệu; không đổi mã chạy ứng dụng hoặc workload được đo. Minh chứng 1f6df40
+đã push/CI xanh; còn push bản sửa demo, CI commit mới và review/merge theo quy
+trình nhóm; không tự merge.
 
 ### Số liệu đã đối chiếu từ CSV gốc
 

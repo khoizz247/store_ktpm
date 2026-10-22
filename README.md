@@ -19,7 +19,9 @@ Không quản lý chi nhánh, thanh toán online hay vận chuyển bên thứ b
 - Tài liệu kiến trúc phân tầng và đặc tả API/quyền truy cập.
 
 Danh sách API/quyền, quy tắc và response: [API_SPEC.md](docs/API_SPEC.md).
-Request mẫu cho IntelliJ HTTP Client: [checkout-demo.http](docs/checkout-demo.http).
+Demo IntelliJ HTTP Client: [đặt đơn trực tiếp](docs/order-demo.http) hoặc
+[giỏ/checkout](docs/checkout-demo.http). Chọn môi trường và tài khoản theo
+[DEMO_GUIDE.md](docs/DEMO_GUIDE.md); đăng ký công khai chỉ tạo CUSTOMER, không tạo ADMIN.
 Hướng dẫn giỏ và JSON demo: [CART_API.md](docs/CART_API.md).
 Chi tiết: [CART_AND_ORDER_SEARCH.md](docs/CART_AND_ORDER_SEARCH.md).
 Profile MySQL đã chuẩn bị cho `single_store_team` tại cổng `3309`, dùng
