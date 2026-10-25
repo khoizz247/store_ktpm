@@ -1,7 +1,7 @@
 # Single Store Service
 
 Hướng dẫn cài đặt, chạy ứng dụng, sử dụng tính năng và kiểm thử backend một cửa hàng.
-Đặc tả nghiệp vụ, kiến trúc, tiến độ và báo cáo được trình bày trong tài liệu ngoài.
+Đặc tả nghiệp vụ, kiến trúc và báo cáo được trình bày trong tài liệu ngoài.
 
 ## 1. Chuẩn bị
 
@@ -10,8 +10,8 @@ Hướng dẫn cài đặt, chạy ứng dụng, sử dụng tính năng và ki�
 - Docker Desktop với Linux Engine và Docker Compose để chạy bản MySQL.
 - Python 3 nếu chạy các script kiểm tra MySQL hoặc kiểm thử Python.
 
-Lệnh bên dưới dùng PowerShell, chạy trong thư mục có `pom.xml` và `compose.yaml`.
-Chỉ copy dòng lệnh, không copy dấu ba backtick bao quanh khối code.
+PowerShell, chạy trong thư mục có `pom.xml` và `compose.yaml`.
+
 
 ```powershell
 git clone https://github.com/khoizz247/store_ktpm.git
@@ -38,7 +38,7 @@ java -version
 ```
 
 Chờ log `Started SalesServiceApplication`, rồi mở Swagger cổng `18080`.
-Dừng bằng `Ctrl+C` tại terminal đang chạy ứng dụng.
+
 
 IntelliJ: mở dự án Maven, đặt Project SDK và Maven Runner là JDK 21 rồi Run
 `SalesServiceApplication`. Không bật profile `mysql` nếu muốn dùng H2.
@@ -93,8 +93,6 @@ $rng.Dispose()
 Bootstrap chỉ tạo ADMIN khi bảng `users` còn trống. Đăng ký công khai chỉ tạo CUSTOMER.
 Email/mật khẩu ADMIN API khác username/mật khẩu MySQL.
 
-Không commit `.env`, JWT hay mật khẩu thật. Đổi `.env` không tự đổi mật khẩu
-MySQL trong volume cũ hoặc mật khẩu ADMIN đã tồn tại.
 
 ### Build và khởi động
 
@@ -106,8 +104,8 @@ curl.exe http://localhost:18081/api/health
 python scripts/verify_mysql.py --base-url http://localhost:18081
 ```
 
-Build đầu có thể mất vài phút để tải dependency. Chờ API và MySQL cùng `healthy`.
-Script kiểm tra cần chạy trong đúng project Compose; nó xác nhận schema, migration,
+Chờ API và MySQL cùng `healthy`.
+Script kiểm tra project Compose; xác nhận schema, migration,
 API health và OpenAPI. Riêng `/api/health` không kiểm tra kết nối database.
 
 Mở http://localhost:18081/swagger-ui.html. Nếu đổi `API_HOST_PORT`, thay cổng
@@ -259,7 +257,7 @@ python -m unittest performance.test_report
 Maven `verify` chạy unit/integration test theo cấu hình dự án. Mong đợi
 `BUILD SUCCESS`, không failure/error. Báo cáo: `target/surefire-reports` và
 `target/failsafe-reports`. Maven mặc định dùng H2, không yêu cầu Docker MySQL.
-Python unit test không chạy tải thật và không thay thế kiểm tra MySQL bên dưới.
+
 
 ### Smoke test với Docker MySQL
 
@@ -304,4 +302,4 @@ Chi tiết thao tác notebook: [performance/README.md](performance/README.md).
 | `404` | Kiểm tra ID, sản phẩm ACTIVE và quyền sở hữu đơn |
 | `409` | Đọc message: có thể trùng email/SKU, thiếu kho, giỏ trống hoặc trạng thái đơn không cho phép |
 
-Đọc log tại máy để debug; không chia sẻ log có secret, token hoặc dữ liệu cá nhân.
+
