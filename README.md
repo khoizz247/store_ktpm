@@ -1,85 +1,62 @@
 # Single Store Service
 
-Hướng dẫn cài đặt, chạy ứng dụng, sử dụng tính năng và kiểm thử backend một cửa hàng.
-Đặc tả nghiệp vụ, kiến trúc và báo cáo được trình bày trong tài liệu ngoài.
+Backend một cửa hàng: công bố sản phẩm, đặt đơn và quản lý tồn kho. Dùng Java 21,
+Spring Boot, REST/JSON và JWT; chưa có thanh toán onl, quản lý nhiều cửa hàng.
 
-## 1. Chuẩn bị
+## Phạm vi và kiến trúc
 
-- Git để lấy mã nguồn.
-- JDK 21 để chạy trên máy; không cần cài Maven riêng vì có Maven Wrapper.
-- Docker Desktop với Linux Engine và Docker Compose để chạy bản MySQL.
-- Python 3 nếu chạy các script kiểm tra MySQL hoặc kiểm thử Python.
+| Tác nhân | Chức năng |
+| --- | --- |
+| Public | Xem/tìm sản phẩm ACTIVE, đăng ký và đăng nhập |
+| CUSTOMER | Xem tài khoản, đổi mật khẩu, giỏ hàng, đặt/xem/tìm đơn của mình, hủy PENDING |
+| ADMIN | Đổi mật khẩu, quản lý sản phẩm/kho, xem đơn toàn hệ thống và đổi trạng thái |
 
-PowerShell, chạy trong thư mục có `pom.xml` và `compose.yaml`.
+Luồng: HTTP + JWT filter → Controller → Service → Repository/port → Adapter JPA/JDBC → database.
+Nghiệp vụ/domain không import web/DB. Đơn, trừ/hoàn kho và audit dùng cùng transaction;
+checkout thành công mới xóa giỏ. Giá lấy từ database và lưu snapshot tên/giá trong đơn.
+Xóa mềm sản phẩm `INACTIVE`.
+Đơn đi theo `PENDING → CONFIRMED → SHIPPING → COMPLETED`; hủy `CANCELLED`.
 
+## Cài đặt và chạy
+
+PowerShell tại thư mục có `pom.xml` và `compose.yaml`.
+Cần Git; JDK 21 nếu chạy Maven; Docker Desktop Linux Engine nếu chạy MySQL.
+Python khi cần chạy các kiểm thử ngoài.
 
 ```powershell
 git clone https://github.com/khoizz247/store_ktpm.git
 cd store_ktpm
 ```
 
-Chọn một trong hai cách chạy:
-
-| Cách chạy | Swagger mặc định | Database | ADMIN |
-| --- | --- | --- | --- |
-| Maven hoặc IntelliJ | http://localhost:18080/swagger-ui.html | H2 trong RAM | `admin@example.com` / `Admin@123`, chỉ local |
-| Docker Compose | http://localhost:18081/swagger-ui.html | MySQL, cổng host `3309` | Tự cấu hình trước lần chạy đầu |
-
-Hai môi trường không dùng chung tài khoản/dữ liệu. H2 mất dữ liệu khi dừng JVM;
-MySQL Docker giữ dữ liệu trong named volume.
-
-## 2. Chạy nhanh bằng H2
+### Cách 1 H2 local
 
 ```powershell
-java -version
 .\mvnw.cmd -version
 .\mvnw.cmd clean verify
 .\mvnw.cmd spring-boot:run
 ```
 
-Chờ log `Started SalesServiceApplication`, rồi mở Swagger cổng `18080`.
+Chờ log `Started`; mở [Swagger H2](http://localhost:18080/swagger-ui.html).
+ADMIN local: `admin@example.com` / `Admin@123`. IntelliJ: chọn SDK/Maven Runner
+JDK 21, Run `SalesServiceApplication`, không bật profile `mysql`.
+H2 RAM mất dữ liệu khi JVM dừng. Linux dùng `bash mvnw`.
 
+### Cách 2 Docker MySQL
 
-IntelliJ: mở dự án Maven, đặt Project SDK và Maven Runner là JDK 21 rồi Run
-`SalesServiceApplication`. Không bật profile `mysql` nếu muốn dùng H2.
-File `.env` của Docker không được Maven/IntelliJ tự động đọc.
-Nếu cổng bận, đặt `SERVER_PORT` thành cổng trống trong Run Configuration hoặc
-terminal chạy app, rồi mở Swagger bằng cổng đã chọn.
-
-## 3. Chạy bằng Docker và MySQL
-
-### Cấu hình lần đầu
-
-Mở Docker Desktop, chờ Engine running rồi kiểm tra:
+Mở Docker Desktop, chờ Engine running. Tạo `.env` nếu chưa có:
 
 ```powershell
 docker info --format '{{.ServerVersion}} {{.OSType}}'
-docker compose version
-```
-
-Cần có Docker Server và OSType là `linux`. Tạo `.env` nếu chưa có, không ghi đè file đang dùng:
-
-```powershell
 if (-not (Test-Path -LiteralPath .env)) {
     Copy-Item -LiteralPath .env.example -Destination .env
 }
 notepad .env
 ```
 
-Điền các biến, mỗi biến một dòng:
-
-| Biến | Giá trị cần đặt |
-| --- | --- |
-| `MYSQL_USER` | Giữ `single_store_team_user` hoặc chọn user riêng, không dùng `root` |
-| `MYSQL_PASSWORD` | Mật khẩu riêng cho user database ứng dụng |
-| `MYSQL_ROOT_PASSWORD` | Mật khẩu quản trị MySQL Docker, nên khác mật khẩu ứng dụng |
-| `MYSQL_HOST_PORT` | Mặc định `3309` |
-| `API_HOST_PORT` | Mặc định `18081`; nếu dùng `18082`, đổi các URL bên dưới theo cổng này |
-| `JWT_SECRET` | Base64 của ít nhất 32 byte ngẫu nhiên |
-| `BOOTSTRAP_ADMIN_EMAIL` | Email ADMIN đăng nhập API |
-| `BOOTSTRAP_ADMIN_PASSWORD` | Ít nhất 12 ký tự, có hoa/thường/số/ký tự đặc biệt, tối đa 72 byte UTF-8 |
-
-Tạo JWT secret rồi copy kết quả vào `JWT_SECRET` trong `.env`:
+Giữ `MYSQL_USER=single_store_team_user`; tự điền `MYSQL_PASSWORD`,
+`MYSQL_ROOT_PASSWORD`, `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD`.
+ADMIN cần mật khẩu ít nhất 12 ký tự, đủ hoa/thường/số/ký tự đặc biệt, tối đa 72 byte UTF-8.
+Tạo `JWT_SECRET` rồi copy kết quả Base64 vào `.env`:
 
 ```powershell
 $jwtBytes = New-Object byte[] 48
@@ -87,219 +64,73 @@ $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
 $rng.GetBytes($jwtBytes)
 [Convert]::ToBase64String($jwtBytes)
 $rng.Dispose()
-```
-
-Đặt cả hai biến bootstrap trước lần chạy đầu để có ADMIN dùng thử.
-Bootstrap chỉ tạo ADMIN khi bảng `users` còn trống. Đăng ký công khai chỉ tạo CUSTOMER.
-Email/mật khẩu ADMIN API khác username/mật khẩu MySQL.
-
-
-### Build và khởi động
-
-```powershell
 docker compose config --quiet
 docker compose up --build -d --wait --wait-timeout 240
 docker compose ps
-curl.exe http://localhost:18081/api/health
-python scripts/verify_mysql.py --base-url http://localhost:18081
 ```
 
-Chờ API và MySQL cùng `healthy`.
-Script kiểm tra project Compose; xác nhận schema, migration,
-API health và OpenAPI. Riêng `/api/health` không kiểm tra kết nối database.
+Mặc định API `18081`, MySQL host `3309`; đổi `API_HOST_PORT`/`MYSQL_HOST_PORT`
+nếu cổng bận rồi thay URL tương ứng. Mở [Swagger Docker](http://localhost:18081/swagger-ui.html).
+ADMIN dùng tài khoản bootstrap, không dùng ADMIN seed H2. Bootstrap chỉ tạo ADMIN
+khi `users` còn trống, nên đặt trước khi đăng ký CUSTOMER. Đổi `.env` không đổi mật khẩu
+đã lưu trong database.
 
-Mở http://localhost:18081/swagger-ui.html. Nếu đổi `API_HOST_PORT`, thay cổng
-trong URL và `--base-url`; không đổi cổng nội bộ `8080` của container.
+Workbench: Standard TCP/IP, host `127.0.0.1`, port `3309`, username/password theo
+`MYSQL_USER`/`MYSQL_PASSWORD`, schema `single_store_team`. Không phải MySQL Windows
+cổng `3306`; mật khẩu database cũng không phải mật khẩu đăng nhập API.
 
-### Dừng chạy lại và xem log
+## Dùng thử tính năng và xem đặc tả API
 
-```powershell
-docker compose ps
-docker compose logs --tail=150 api
-docker compose logs --tail=150 mysql
-docker compose stop
-docker compose up -d --wait --wait-timeout 240
-```
+- File chuẩn OpenAPI: [docs/openapi.json](docs/openapi.json), có request/response,
+  tham số, validation, JWT, quyền và lỗi cho đủ 28 thao tác API.
+- Preview không gửi request: [docs/api-preview.html](docs/api-preview.html).
+  Mở file HTML rồi chọn `openapi.json.
+  Hoặc mở [Swagger Editor](https://editor.swagger.io/) và import/dán JSON.
+- Swagger của ứng dụng dùng để gọi API thật. JSON sinh từ app đang chạy:
+  [H2](http://localhost:18080/v3/api-docs) / [Docker](http://localhost:18081/v3/api-docs).
+  Đối chiếu lại khi thay API.
+- Trong Swagger: `Try it out → Execute`. Login qua `POST /api/auth/login`, copy
+  riêng `accessToken` vào `Authorize` (không thêm chữ Bearer); thay token khi đổi role.
 
-- `stop` dừng container, giữ dữ liệu.
-- `up -d` chạy lại và áp dụng cấu hình Compose; sau khi sửa Java, dùng lại `up --build` ở trên.
-- `restart api` không build mã mới hay áp dụng `.env` mới.
-- `docker compose down` gỡ container/network, giữ named volume.
-- Không dùng `docker compose down -v` để chữa lỗi: lệnh này xóa volume và dữ liệu MySQL.
+Luồng demo trên database thử, dùng SKU/email mới và ID thực trả về:
 
-### Kết nối MySQL Workbench
+1. ADMIN tạo sản phẩm bằng `POST /api/products` với
+   `{"sku":"DEMO-001","name":"Demo","price":120000,"stockQuantity":10}`.
+2. Public đăng ký `POST /api/auth/register` với
+   `{"fullName":"Khách demo","email":"demo-001@example.test","password":"DemoCustomer@123"}`.
+   Thay token trong Authorize bằng token CUSTOMER; `GET /api/users/me` để xác nhận.
+3. CUSTOMER `POST /api/orders` với body sau; thay `productId=1` bằng ID thực:
+   `{"recipientName":"Khách demo","recipientPhone":"0901234567","shippingAddress":"123 Demo","items":[{"productId":1,"quantity":2}]}`.
+4. Mong đợi `201/PENDING`, tiền `240000`; `GET /api/products/{id}` thấy kho `10 → 8`.
+   `PATCH /api/orders/{id}/cancel` không body trả `200/CANCELLED`, kho về `10`.
+5. Thử giỏ: `PUT /api/cart/items/{productId}` với `{"quantity":2}`, rồi
+   `POST /api/cart/checkout` với ba trường người nhận/điện thoại/địa chỉ như trên,
+   không truyền `items`; mong đợi kho giảm và `GET /api/cart` trả giỏ rỗng.
+   Thêm giỏ chưa giữ chỗ tồn kho; checkout không có bước thanh toán online.
 
-Tạo connection Standard TCP/IP: hostname `127.0.0.1`, port theo `MYSQL_HOST_PORT`
-(mặc định `3309`), username theo `MYSQL_USER`, password theo `MYSQL_PASSWORD`.
-Test Connection rồi mở schema `single_store_team`.
-Không dùng connection MySQL Windows cổng `3306` để tìm dữ liệu Docker.
+Các thao tác sửa/xóa sản phẩm, điều chỉnh kho, đổi mật khẩu, tìm đơn và quản lý
+trạng thái: xem nhóm tương ứng trong OpenAPI/Swagger. ADMIN không dùng API đặt đơn CUSTOMER.
+Có thể chạy [demo đặt đơn](docs/order-demo.http) hoặc [demo giỏ](docs/checkout-demo.http)
+bằng IntelliJ HTTP Client; dùng môi trường `h2` hoặc khai báo môi trường Docker riêng.
 
-```sql
-USE single_store_team;
-SHOW TABLES;
-SELECT id, sku, name, stock_quantity, status FROM products;
-SELECT id, order_code, user_id, status, total_amount FROM orders;
-SELECT product_id, movement_type, quantity_change, stock_before, stock_after
-FROM inventory_movements ORDER BY id DESC;
-```
-
-## 4. Sử dụng tính năng trên Swagger
-
-Mỗi API: chọn method/đường dẫn → `Try it out` → nhập tham số/body →
-`Execute` → đọc HTTP status và Response body. Chỉ thử thao tác ghi trên database demo.
-Thay `{id}` và `{productId}` bằng ID thực, không nhập nguyên dấu ngoặc nhọn.
-
-### Đăng nhập ADMIN và tạo sản phẩm
-
-1. Gọi `POST /api/auth/login` bằng ADMIN của môi trường đang chạy:
-   Docker dùng tài khoản bootstrap trong `.env`; H2 dùng tài khoản local ở mục 1.
-2. Body: `{"email":"EMAIL_ADMIN","password":"MAT_KHAU_ADMIN"}`;
-   thay hai giá trị trước khi gửi. Mong đợi `200`, `role=ADMIN`.
-3. Copy riêng `accessToken`, bấm `Authorize`, dán token rồi `Authorize` → `Close`.
-   Không thêm chữ `Bearer` vào ô này vì Swagger tự thêm.
-4. Gọi `POST /api/products` với body sau; mong đợi `201`. Ghi lại `id` sản phẩm.
-
-```json
-{
-  "sku": "DEMO-README-001",
-  "name": "Sản phẩm thử nghiệm",
-  "description": "Chỉ dùng trên database demo",
-  "price": 120000,
-  "stockQuantity": 10
-}
-```
-
-Đổi SKU nếu đã tồn tại (`409`).
-
-### Đăng ký CUSTOMER đặt đơn và hủy đơn
-
-1. Gọi `POST /api/auth/register` với body sau; đổi email nếu đã đăng ký.
-   Mong đợi `201`, `role=CUSTOMER`.
-
-```json
-{
-  "fullName": "Khách hàng demo",
-  "email": "readme-customer-001@example.test",
-  "password": "DemoCustomer@123"
-}
-```
-
-2. Trong `Authorize`, Logout token ADMIN và thay bằng `accessToken` CUSTOMER.
-   Có thể gọi `POST /api/auth/login` để lấy lại token.
-3. Gọi `GET /api/users/me` để xác nhận đúng tài khoản.
-4. Gọi `POST /api/orders` với body sau. **Thay `productId: 1` bằng ID sản phẩm đã tạo.**
-
-```json
-{
-  "recipientName": "Khách hàng demo",
-  "recipientPhone": "0901234567",
-  "shippingAddress": "123 Đường Demo, Hà Nội",
-  "items": [{"productId": 1, "quantity": 2}]
-}
-```
-
-5. Mong đợi `201`, `PENDING`, tổng tiền `240000`; ghi lại `id` đơn.
-6. Gọi `GET /api/products/{id}`: kho từ `10` còn `8` nếu không có giao dịch khác.
-7. Gọi `PATCH /api/orders/{id}/cancel` bằng chính CUSTOMER đó, không cần body:
-   mong đợi `200`, `CANCELLED`; đọc lại sản phẩm thấy kho về `10`.
-   Hủy lại đơn này trả `409`, không hoàn kho thêm.
-
-### Giỏ hàng và checkout
-
-Dùng token CUSTOMER, sản phẩm ACTIVE và đủ kho:
-
-1. `PUT /api/cart/items/{productId}` với `{"quantity":2}`: đặt số lượng là 2, không phải cộng thêm 2.
-2. `GET /api/cart` để xem giỏ. Thêm giỏ chưa trừ hoặc giữ chỗ tồn kho.
-3. `POST /api/cart/checkout` với body sau; không truyền `items`.
-
-```json
-{
-  "recipientName": "Khách hàng demo",
-  "recipientPhone": "0901234567",
-  "shippingAddress": "123 Đường Demo, Hà Nội"
-}
-```
-
-4. Mong đợi `201`, đơn `PENDING`, kho giảm 2; `GET /api/cart` trả giỏ rỗng.
-5. Xóa một món bằng `DELETE /api/cart/items/{productId}` hoặc xóa cả giỏ bằng `DELETE /api/cart` (`204`).
-
-### Thử các tính năng còn lại
-
-| Thao tác | Cách dùng trên Swagger |
-| --- | --- |
-| Xem/tìm sản phẩm | `GET /api/products` hoặc `/api/products/search`; nhập `q`, `page=0`, `size=20`; không cần token |
-| Xem/tìm đơn của mình | CUSTOMER gọi `GET /api/orders/me`, `/api/orders/{id}` hoặc `/api/orders/me/search` với `code`, `status` |
-| Sửa sản phẩm | ADMIN gọi `PUT /api/products/{id}`; điền `name`, `description`, `price`, `stockQuantity` |
-| Đặt lại số tồn | ADMIN gọi `PATCH /api/products/{id}/stock` với `{"stockQuantity":15}`; là số tồn mới, không phải cộng 15 |
-| Tăng/giảm kho | ADMIN gọi `POST /api/admin/products/{productId}/inventory/adjustments` với `{"quantityChange":5,"note":"Nhập hàng demo"}`; dùng số âm nếu giảm |
-| Xem lịch sử kho | ADMIN gọi `GET /api/admin/products/{productId}/inventory` |
-| Xem/tìm đơn toàn hệ thống | ADMIN gọi `GET /api/admin/orders`, `/api/admin/orders/search` hoặc `/api/admin/orders/{id}` |
-| Chuyển trạng thái đơn | ADMIN gọi `PATCH /api/admin/orders/{id}/status` với `{"status":"CONFIRMED"}`; dùng đơn mới chưa hủy, theo thứ tự `PENDING → CONFIRMED → SHIPPING → COMPLETED` |
-| Hủy đơn phía ADMIN | API cập nhật trạng thái với `{"status":"CANCELLED"}` khi đơn `PENDING` hoặc `CONFIRMED` |
-| Đổi mật khẩu | `POST /api/users/me/password` với `currentPassword`, `newPassword`; mật khẩu mới đủ mạnh như yêu cầu ADMIN ở mục 3 và khác mật khẩu cũ; thành công `204`, thử login lại |
-| Xóa mềm sản phẩm | ADMIN gọi `DELETE /api/products/{id}` (`204`); sản phẩm chuyển `INACTIVE`, GET công khai theo ID trả `404`. Thử bước này cuối cùng |
-
-IntelliJ HTTP Client có sẵn [luồng đặt đơn](docs/order-demo.http) và
-[luồng giỏ hàng](docs/checkout-demo.http). Chọn môi trường `h2`;
-với Docker, đặt `base`, `adminEmail`, `adminPassword` theo môi trường riêng trong
-`docs/http-client.private.env.json`, không commit file này.
-
-## 5. Chạy kiểm thử
-
-### Java và Python
+## Kiểm thử và xử lý lỗi
 
 ```powershell
 .\mvnw.cmd clean verify
 python -m unittest discover -s scripts -p "test_*.py"
 python -m unittest performance.test_report
-```
-
-Maven `verify` chạy unit/integration test theo cấu hình dự án. Mong đợi
-`BUILD SUCCESS`, không failure/error. Báo cáo: `target/surefire-reports` và
-`target/failsafe-reports`. Maven mặc định dùng H2, không yêu cầu Docker MySQL.
-
-
-### Smoke test với Docker MySQL
-
-Chạy sau khi Compose healthy. Các tùy chọn `--exercise-*` **tạo tài khoản/đơn/audit,
-trừ kho và giữ dữ liệu**, không tự hủy đơn. Chỉ dùng database demo.
-
-```powershell
 python scripts/verify_mysql.py --base-url http://localhost:18081
-python scripts/verify_mysql.py --base-url http://localhost:18081 --exercise-orders
-python scripts/verify_mysql.py --base-url http://localhost:18081 --exercise-cart
-python scripts/verify_mysql.py --base-url http://localhost:18081 --exercise-cart-concurrently
 ```
 
-Đổi cổng theo `API_HOST_PORT`. Kiểm tra checkout cạnh tranh không thay thế kiểm thử tải.
+JUnit mặc định dùng H2; báo cáo ở `target/surefire-reports` và `target/failsafe-reports`.
+Script Python cuối kiểm tra Docker MySQL đang chạy; không thay JUnit.
+Có thể thêm `--exercise-orders`, `--exercise-cart` hoặc `--exercise-cart-concurrently`
+để thử luồng thật: **tạo dữ liệu, trừ kho và giữ đơn/audit**, chỉ dùng DB demo.
+Kaggle CPU: import `performance/kaggle_load_test.ipynb`, bật Internet, nhập SHA đã push,
+chạy đủ cell và tải ZIP kết quả; [hướng dẫn chạy](performance/README.md).
 
-### Chạy tải trên Kaggle CPU
-
-1. Commit/push phiên bản muốn đo, ghi SHA bằng `git rev-parse HEAD`.
-2. Tạo Kaggle Python Notebook, chọn CPU (`Accelerator=None`), bật Internet.
-3. Import riêng `performance/kaggle_load_test.ipynb`, không upload cả thư mục.
-4. Chạy cell clone/checkout, nhập SHA đã push. Chạy cell runner; không đặt
-   `LOAD_SMOKE_ONLY=1` nếu muốn đủ bốn pha.
-5. Chờ các pha 5/10/30/60 người dùng hoàn tất, chạy cell đóng gói kết quả.
-6. Tải `/kaggle/working/single_store_load_results.zip` trong Output trước khi kết thúc phiên.
-
-MySQL/API chạy trong Kaggle, không dùng Docker/database trên máy cá nhân.
-Mỗi lần đo độc lập dùng session sạch; nếu runner lỗi, đọc log trước, không đổi sang H2.
-Chi tiết thao tác notebook: [performance/README.md](performance/README.md).
-
-## 6. Khi không chạy được
-
-| Hiện tượng | Kiểm tra/thao tác |
-| --- | --- |
-| Maven sai Java | Xem `.\mvnw.cmd -version`, chỉnh JAVA_HOME hoặc Maven Runner về JDK 21 |
-| Docker không có Server hoặc không kết nối Engine | Mở Docker Desktop, chờ Linux Engine running rồi thử `docker info` |
-| API vừa chạy chưa phản hồi | Chờ healthcheck, đọc `docker compose logs --tail=150 api` |
-| Cổng bị chiếm | Đổi cổng host trong `.env`, chạy lại Compose, sửa URL/Workbench theo cổng mới |
-| MySQL Access denied sau khi đổi `.env` | Kiểm tra mật khẩu lúc khởi tạo volume; đổi `.env` không đổi tài khoản database cũ. Không xóa volume để thử |
-| ADMIN Docker không login được | Kiểm tra bootstrap đã tạo ADMIN khi `users` còn trống; không dùng ADMIN seed H2 |
-| `400` | Kiểm tra JSON/trường bắt buộc/số lượng; `page >= 0`, `size` từ 1 đến 100 |
-| `401` hoặc `403` | Login lại và thay token; CUSTOMER dùng giỏ/đặt đơn, ADMIN dùng quản trị |
-| `404` | Kiểm tra ID, sản phẩm ACTIVE và quyền sở hữu đơn |
-| `409` | Đọc message: có thể trùng email/SKU, thiếu kho, giỏ trống hoặc trạng thái đơn không cho phép |
-
-
+Đọc log: `docker compose logs --tail=150 api mysql`. `401`: thiếu/sai token;
+`403`: sai role; `404`: sai ID/không sở hữu/INACTIVE; `409`: đọc message để kiểm tra
+trùng dữ liệu, thiếu kho hoặc trạng thái. `/api/health` chỉ xác nhận tiến trình,
+không xác nhận database. `docker compose stop` giữ dữ liệu; `up -d` chạy lại;
+sửa Java dùng `up --build`. Không dùng `down -v` để chữa lỗi vì sẽ mất volume MySQL.

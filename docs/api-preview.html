@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Single Store Service API Preview</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.21.0/swagger-ui.css">
+  <style>
+    body { margin: 0; color: #172033; background: #fafbfc; font: 16px/1.5 Arial, sans-serif; }
+    header { padding: 24px max(24px, calc((100vw - 1440px)/2)); background: white; border-bottom: 1px solid #ddd; }
+    h1 { margin: 0 0 8px; font-size: 25px; }
+    p { margin: 8px 0; }
+    input { max-width: 100%; }
+    #status { color: #444; }
+    #status.error { color: #a11; }
+    #swagger-ui { max-width: 1460px; margin: auto; }
+    .authorize, .authorization__btn { display: none !important; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Single Store Service API</h1>
+    <label for="spec-file">Chọn file <strong>openapi.json</strong>: </label>
+    <input id="spec-file" type="file" accept=".json,application/json">
+    <p id="status" role="status">Đang tải đặc tả cùng thư mục. Nếu mở bằng file://, hãy chọn file JSON phía trên.</p>
+  </header>
+  <main id="swagger-ui"></main>
+  <script src="https://unpkg.com/swagger-ui-dist@5.21.0/swagger-ui-bundle.js"></script>
+  <script>
+    "use strict";
+    const status = document.getElementById("status");
+    function show(spec, label) {
+      if (!window.SwaggerUIBundle) {
+        throw new Error("Không tải được Swagger UI. Kiểm tra Internet rồi mở lại trang.");
+      }
+      if (!spec.openapi || !spec.paths || !spec.components) {
+        throw new Error("File không phải đặc tả OpenAPI đầy đủ.");
+      }
+      window.apiPreview = SwaggerUIBundle({
+        spec: spec,
+        dom_id: "#swagger-ui",
+        deepLinking: true,
+        supportedSubmitMethods: [],
+        validatorUrl: null,
+        persistAuthorization: false,
+        docExpansion: "list",
+        displayRequestDuration: false,
+        requestInterceptor: function () {
+          throw new Error("Preview chỉ đọc; dùng Swagger của ứng dụng để gọi API thật.");
+        },
+        onComplete: function () {
+          document.querySelectorAll(".auth-wrapper").forEach(function (node) { node.remove(); });
+        }
+      });
+      const count = Object.values(spec.paths).reduce(function (n, path) {
+        return n + Object.keys(path).filter(function (method) {
+          return ["get", "post", "put", "patch", "delete"].includes(method);
+        }).length;
+      }, 0);
+      status.className = "";
+      status.textContent = label + " — " + count + " thao tác API.";
+    }
+    function failure(error) {
+      status.className = "error";
+      status.textContent = error.message;
+    }
+    document.getElementById("spec-file").addEventListener("change", async function (event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      try { show(JSON.parse(await file.text()), file.name); }
+      catch (error) { failure(error); }
+    });
+    if (location.protocol !== "file:") {
+      fetch("./openapi.json").then(function (response) {
+        if (!response.ok) throw new Error("Không đọc được openapi.json; hãy chọn file thủ công.");
+        return response.json();
+      }).then(function (spec) { show(spec, "openapi.json"); }).catch(failure);
+    }
+    if (!window.SwaggerUIBundle) failure(new Error("Không tải được Swagger UI; kiểm tra Internet rồi mở lại trang."));
+  </script>
+</body>
+</html>
