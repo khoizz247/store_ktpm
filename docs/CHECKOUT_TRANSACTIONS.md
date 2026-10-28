@@ -1,4 +1,4 @@
-# D6 — kiểm chứng transaction và checkout cạnh tranh
+# Kiểm chứng transaction và checkout cạnh tranh
 
 ## Phạm vi
 
