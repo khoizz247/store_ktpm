@@ -1,4 +1,4 @@
-# C8 direct-order workflow; see DEMO_GUIDE.md before running.
+# C8 direct-order workflow; see ../README.md before running.
 # Select h2 or configure a private docker environment. Public register creates CUSTOMER only.
 # Use fresh customer emails and SKU per independent run; never paste real secrets here.
 @customerAEmail = c8-customer-a-001@example.test

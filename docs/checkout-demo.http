@@ -1,4 +1,4 @@
-# Cart/checkout flow for IntelliJ HTTP Client; see DEMO_GUIDE.md.
+# Cart/checkout flow for IntelliJ HTTP Client; see ../README.md.
 # Select h2 or configure a private docker environment before running.
 # Use a fresh SKU/email per independent run. Do NOT commit real credentials/tokens.
 @customerEmail = demo-customer-001@example.test
