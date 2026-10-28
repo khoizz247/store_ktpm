@@ -1,4 +1,4 @@
-# Giỏ hàng và checkout D5
+# Giỏ hàng 
 
 ## Phạm vi và luồng xử lý
 
