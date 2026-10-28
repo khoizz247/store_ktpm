@@ -1,0 +1,127 @@
+# C8 direct-order workflow; see DEMO_GUIDE.md before running.
+# Select h2 or configure a private docker environment. Public register creates CUSTOMER only.
+# Use fresh customer emails and SKU per independent run; never paste real secrets here.
+@customerAEmail = c8-customer-a-001@example.test
+@customerBEmail = c8-customer-b-001@example.test
+@customerPassword = DemoCustomer@123
+@sku = DEMO-C8-001
+
+### 1. Health
+GET {{base}}/api/health
+
+> {% client.test("API ready", function() { client.assert(response.status === 200); client.assert(response.body.status === "UP"); }); %}
+
+### 2. Login existing ADMIN (H2 seed or MySQL bootstrap); do NOT register an admin
+POST {{base}}/api/auth/login
+Content-Type: application/json
+
+{"email":"{{adminEmail}}","password":"{{adminPassword}}"}
+
+> {% client.test("ADMIN login", function() { client.assert(response.status === 200); client.assert(response.body.role === "ADMIN"); client.assert(!!response.body.accessToken); client.global.set("c8AdminToken", response.body.accessToken); }); %}
+
+### 3. Register Customer A (fresh email)
+POST {{base}}/api/auth/register
+Content-Type: application/json
+
+{"fullName":"Khách hàng A","email":"{{customerAEmail}}","password":"{{customerPassword}}"}
+
+> {% client.test("register A as CUSTOMER", function() { client.assert(response.status === 201); client.assert(response.body.role === "CUSTOMER"); }); %}
+
+### 4. Login Customer A
+POST {{base}}/api/auth/login
+Content-Type: application/json
+
+{"email":"{{customerAEmail}}","password":"{{customerPassword}}"}
+
+> {% client.test("login A", function() { client.assert(response.status === 200); client.assert(response.body.role === "CUSTOMER"); client.assert(!!response.body.accessToken); client.global.set("c8CustomerAToken", response.body.accessToken); }); %}
+
+### 5. Register Customer B (different fresh email)
+POST {{base}}/api/auth/register
+Content-Type: application/json
+
+{"fullName":"Khách hàng B","email":"{{customerBEmail}}","password":"{{customerPassword}}"}
+
+> {% client.test("register B as CUSTOMER", function() { client.assert(response.status === 201); client.assert(response.body.role === "CUSTOMER"); }); %}
+
+### 6. Login Customer B
+POST {{base}}/api/auth/login
+Content-Type: application/json
+
+{"email":"{{customerBEmail}}","password":"{{customerPassword}}"}
+
+> {% client.test("login B", function() { client.assert(response.status === 200); client.assert(response.body.role === "CUSTOMER"); client.assert(!!response.body.accessToken); client.global.set("c8CustomerBToken", response.body.accessToken); }); %}
+
+### 7. ADMIN creates product, stock 10
+POST {{base}}/api/products
+Authorization: Bearer {{c8AdminToken}}
+Content-Type: application/json
+
+{"sku":"{{sku}}","name":"Sản phẩm Demo C8","description":"Kiểm thử luồng đặt hàng và tồn kho","price":100000,"stockQuantity":10}
+
+> {% client.test("create product", function() { client.assert(response.status === 201); client.assert(response.body.stockQuantity === 10); client.assert(response.body.id > 0); client.global.set("c8ProductId", response.body.id); }); %}
+
+### 8. A creates direct order, stock 10 -> 8
+POST {{base}}/api/orders
+Authorization: Bearer {{c8CustomerAToken}}
+Content-Type: application/json
+
+{"recipientName":"Nguyễn Văn Khách","recipientPhone":"0901234567","shippingAddress":"Số 1 Đại học Quốc gia Hà Nội","items":[{"productId":{{c8ProductId}},"quantity":2}]}
+
+> {% client.test("create PENDING order", function() { client.assert(response.status === 201); client.assert(response.body.status === "PENDING"); client.assert(response.body.totalAmount === 200000); client.assert(response.body.id > 0); client.global.set("c8OrderId", response.body.id); }); %}
+
+### 9. Verify stock 8
+GET {{base}}/api/products/{{c8ProductId}}
+
+> {% client.test("stock after sale", function() { client.assert(response.status === 200); client.assert(response.body.stockQuantity === 8); }); %}
+
+### 10. A reads own order
+GET {{base}}/api/orders/{{c8OrderId}}
+Authorization: Bearer {{c8CustomerAToken}}
+
+> {% client.test("owner reads order", function() { client.assert(response.status === 200); client.assert(response.body.status === "PENDING"); client.assert(response.body.totalAmount === 200000); }); %}
+
+### 11. B cannot read A's order: 404 (do not disclose another customer's order)
+GET {{base}}/api/orders/{{c8OrderId}}
+Authorization: Bearer {{c8CustomerBToken}}
+
+> {% client.test("non-owner read denied", function() { client.assert(response.status === 404); }); %}
+
+### 12. B cannot cancel A's order: 404
+PATCH {{base}}/api/orders/{{c8OrderId}}/cancel
+Authorization: Bearer {{c8CustomerBToken}}
+
+> {% client.test("non-owner cancellation denied", function() { client.assert(response.status === 404); }); %}
+
+### 13. Unauthorized cancellation did not restore stock
+GET {{base}}/api/products/{{c8ProductId}}
+
+> {% client.test("stock remains 8", function() { client.assert(response.status === 200); client.assert(response.body.stockQuantity === 8); }); %}
+
+### 14. ADMIN reads detail using separate admin endpoint
+GET {{base}}/api/admin/orders/{{c8OrderId}}
+Authorization: Bearer {{c8AdminToken}}
+
+> {% client.test("admin order detail", function() { client.assert(response.status === 200); client.assert(response.body.status === "PENDING"); }); %}
+
+### 15. A cancels PENDING order, stock 8 -> 10
+PATCH {{base}}/api/orders/{{c8OrderId}}/cancel
+Authorization: Bearer {{c8CustomerAToken}}
+
+> {% client.test("owner cancels order", function() { client.assert(response.status === 200); client.assert(response.body.status === "CANCELLED"); }); %}
+
+### 16. Repeated cancellation: 409, no second restoration
+PATCH {{base}}/api/orders/{{c8OrderId}}/cancel
+Authorization: Bearer {{c8CustomerAToken}}
+
+> {% client.test("repeat cancellation denied", function() { client.assert(response.status === 409); }); %}
+
+### 17. Verify stock restored exactly once
+GET {{base}}/api/products/{{c8ProductId}}
+
+> {% client.test("stock restored to 10", function() { client.assert(response.status === 200); client.assert(response.body.stockQuantity === 10); }); %}
+
+### 18. Audit retains opening / SALE / SALE_REVERSAL
+GET {{base}}/api/admin/products/{{c8ProductId}}/inventory
+Authorization: Bearer {{c8AdminToken}}
+
+> {% client.test("audit balances", function() { client.assert(response.status === 200); client.assert(response.body.some(function(m) { return m.type === "SALE" && m.quantityChange === -2; })); client.assert(response.body.some(function(m) { return m.type === "SALE_REVERSAL" && m.quantityChange === 2; })); response.body.forEach(function(m) { client.assert(m.stockAfter === m.stockBefore + m.quantityChange); }); }); %}

@@ -53,16 +53,15 @@ Trong terminal tại thư mục repository:
 .\mvnw.cmd verify
 ```
 
-Hiện `ProductAuditAndSeedIT` của B có tên kết thúc IT, trong khi pom chưa cấu hình
-Failsafe hoặc Surefire include IT. Vì vậy verify mặc định không tự chạy lớp đó.
-Muốn kiểm tra cả lớp IT hiện có, dùng:
+D7 đã thêm Failsafe vào lifecycle: verify mặc định chạy cả các lớp Test qua
+Surefire và các lớp IT qua Failsafe, gồm `ProductAuditAndSeedIT` của B. Dùng:
 
 ```powershell
-.\mvnw.cmd "-Dtest=*Test,*IT" verify
+.\mvnw.cmd verify
 ```
 
-Đây là cách nghiệm thu tường minh trước khi B/D7 thống nhất cấu hình CI;
-không đổi pom dùng chung hoặc đổi tên file của B trong D6.
+Không cần `-Dtest=*Test,*IT` nữa để tránh chạy IT ở cả hai plugin. Chi tiết cấu
+hình D7 và giới hạn kiểm tra kiến trúc: [CI_ARCHITECTURE.md](CI_ARCHITECTURE.md).
 
 ## Smoke hai checkout trên MySQL thật
 

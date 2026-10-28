@@ -62,14 +62,15 @@ V1/V2 success, health và OpenAPI. Nếu đổi API_HOST_PORT, truyền --base-u
 
 Chạy khi database demo không có người mua đồng thời. Lệnh dưới tạo hai customer,
 một đơn PENDING, trừ một sản phẩm và giữ dữ liệu/audit để đối chiếu. Không tự hủy
-vì API hủy thuộc bước sau. Không chạy trên database chứa dữ liệu quan trọng.
+vì script giữ minh chứng để đối chiếu. Không chạy trên database chứa dữ liệu quan trọng.
 
 ```powershell
 python scripts/verify_mysql.py --exercise-orders
 ```
 
 Script dùng API register/login/order/list/detail hiện có của C4, kiểm tra 401 và
-khách khác không xem được đơn. Chưa yêu cầu ProductController vì B4 chưa tích hợp.
+khách khác không xem được đơn. Product API hiện đã tích hợp; script dùng sản phẩm
+mẫu có sẵn để không phải dựa vào mật khẩu admin.
 Sản phẩm mẫu từ migration V2 cung cấp dữ liệu để thử đơn.
 
 ## MySQL Workbench
@@ -98,7 +99,8 @@ Maven mặc định dùng H2; không suy ra migration MySQL đã chạy từ tes
 API health chỉ kiểm tra tiến trình; phải chạy script để kiểm chứng schema/migration.
 Đọc logs API/MySQL tại máy nếu lỗi; không đăng log chứa secret lên PR.
 Compose không tạo view/trigger như dự án sales-service cũ; schema nhóm có sáu bảng
-nghiệp vụ cộng bảng lịch sử Flyway. Kiểm thử load/concurrency thuộc các mốc sau.
+nghiệp vụ cộng bảng lịch sử Flyway. Test cạnh tranh checkout có tại
+CHECKOUT_TRANSACTIONS.md; không thay thế kiểm thử tải trên Kaggle.
 
 ## Kết quả nghiệm thu local ngày 16 tháng 10 năm 2026
 

@@ -2,6 +2,7 @@ package vn.edu.sales.api.system.product;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -88,20 +89,20 @@ public class ProductController {
             @NotBlank @Size(max = 64) String sku,
             @NotBlank @Size(max = 160) String name,
             @Size(max = 1000) String description,
-            @NotNull @DecimalMin("0.01") BigDecimal price,
-            @Min(0) int stockQuantity
+            @NotNull @DecimalMin("0.01") @Digits(integer = 13, fraction = 2) BigDecimal price,
+            @NotNull @Min(0) Integer stockQuantity
     ) {
     }
 
     public record UpdateProductRequest(
             @NotBlank @Size(max = 160) String name,
             @Size(max = 1000) String description,
-            @NotNull @DecimalMin("0.01") BigDecimal price,
-            @Min(0) int stockQuantity
+            @NotNull @DecimalMin("0.01") @Digits(integer = 13, fraction = 2) BigDecimal price,
+            @NotNull @Min(0) Integer stockQuantity
     ) {
     }
 
-    public record UpdateStockRequest(@Min(0) int stockQuantity) {
+    public record UpdateStockRequest(@NotNull @Min(0) Integer stockQuantity) {
     }
 
     public record ProductResponse(

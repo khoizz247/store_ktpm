@@ -62,10 +62,10 @@ public class OrderController {
             @NotBlank @Size(max = 120) String recipientName,
             @NotBlank @Size(max = 30) String recipientPhone,
             @NotBlank @Size(max = 500) String shippingAddress,
-            @NotEmpty List<@Valid CreateOrderItemRequest> items) {
+            @NotEmpty List<@NotNull @Valid CreateOrderItemRequest> items) {
     }
 
-    public record CreateOrderItemRequest(@NotNull Long productId, @Min(1) int quantity) {
+    public record CreateOrderItemRequest(@NotNull Long productId, @NotNull @Min(1) Integer quantity) {
     }
 
     public record OrderResponse(Long id, String orderCode, Long userId, String recipientName,

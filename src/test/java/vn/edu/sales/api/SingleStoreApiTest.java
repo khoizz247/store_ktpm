@@ -18,7 +18,7 @@ import vn.edu.sales.domain.model.UserStatus;
 import vn.edu.sales.infrastructure.persistence.product.SpringDataProductRepository;
 import vn.edu.sales.infrastructure.persistence.user.SpringDataUserRepository;
 import vn.edu.sales.infrastructure.persistence.user.UserJpaEntity;
-import org.springframework.test.context.jdbc.Sql;
+import javax.sql.DataSource;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,8 +31,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Sql(scripts = "classpath:inventory_movements.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 class SingleStoreApiTest {
+
+    @Autowired
+    DataSource dataSource;
 
     @Autowired
     MockMvc mvc;
@@ -56,10 +58,13 @@ class SingleStoreApiTest {
     TestRestTemplate restTemplate;
 
     @BeforeEach
-    void setUp() {
-        jdbcTemplate.execute("DELETE FROM inventory_movements");
-        products.deleteAll();
-        users.deleteAll();
+    void setUp() throws Exception {
+        try (var connection = dataSource.getConnection()) {
+            assertThat(connection.getMetaData().getURL()).startsWith("jdbc:h2:mem:c7-api-test");
+        }
+        for (String table : List.of("inventory_movements", "cart_items", "order_items", "orders", "products", "users")) {
+            jdbcTemplate.update("DELETE FROM " + table);
+        }
     }
 
     @Test
@@ -276,25 +281,17 @@ class SingleStoreApiTest {
             }));
         }
 
-        startLatch.countDown();
-
-        int successCount = 0;
-        int conflictCount = 0;
-        for (Future<ResponseEntity<String>> future : futures) {
-            ResponseEntity<String> response = future.get();
-            if (response.getStatusCode().is2xxSuccessful()) {
-                successCount++;
-            } else if (response.getStatusCode().value() == 409) {
-                conflictCount++;
+        try {
+            startLatch.countDown();
+            List<Integer> statuses = new ArrayList<>();
+            for (Future<ResponseEntity<String>> future : futures) {
+                statuses.add(future.get(20, TimeUnit.SECONDS).getStatusCode().value());
             }
+            assertThat(statuses).containsExactlyInAnyOrder(201, 409);
+        } finally {
+            executor.shutdownNow();
+            assertThat(executor.awaitTermination(5, TimeUnit.SECONDS)).isTrue();
         }
-
-        executor.shutdown();
-        boolean terminated = executor.awaitTermination(3, TimeUnit.SECONDS);
-
-        assertThat(terminated).isTrue();
-        assertThat(successCount).isEqualTo(1);
-        assertThat(conflictCount).isEqualTo(1);
         assertStock(productId, 0);
         Long saleAuditCount = jdbcTemplate.queryForObject(
                 """

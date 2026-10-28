@@ -24,7 +24,7 @@ public class ProductRepositoryAdapter implements ProductRepository {
                 product.id(), product.sku(), product.name(), product.description(), product.price(),
                 product.stockQuantity(), product.status(), product.version()
         );
-        return toDomain(repository.save(entity));
+        return toDomain(repository.saveAndFlush(entity));
     }
 
     @Override

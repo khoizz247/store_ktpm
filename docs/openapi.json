@@ -1,0 +1,2567 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Single Store Service API",
+    "version": "0.1.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:18080",
+      "description": "H2 local"
+    },
+    {
+      "url": "http://localhost:18081",
+      "description": "Docker mặc định; sửa URL nếu API_HOST_PORT khác"
+    }
+  ],
+  "tags": [
+    {
+      "name": "System"
+    },
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Account"
+    },
+    {
+      "name": "Products"
+    },
+    {
+      "name": "Cart"
+    },
+    {
+      "name": "Orders"
+    },
+    {
+      "name": "Admin orders"
+    },
+    {
+      "name": "Inventory"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "operationId": "health",
+        "summary": "Kiểm tra tiến trình API",
+        "description": "Quyền: PUBLIC. Trả UP cố định; không xác nhận database sẵn sàng.",
+        "security": [],
+        "x-roles": [],
+        "responses": {
+          "200": {
+            "description": "Thành công.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "register",
+        "summary": "Đăng ký CUSTOMER",
+        "description": "Quyền: PUBLIC. Role luôn là CUSTOMER. Email trùng trả 409.",
+        "security": [],
+        "x-roles": [],
+        "responses": {
+          "201": {
+            "description": "Đã tạo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              },
+              "example": {
+                "fullName": "Khách hàng demo",
+                "email": "demo-001@example.test",
+                "password": "DemoCustomer@123"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "login",
+        "summary": "Đăng nhập nhận JWT",
+        "description": "Quyền: PUBLIC. Ví dụ là ADMIN seed H2 local. Docker dùng tài khoản bootstrap riêng. Tài khoản bị khóa hoặc sai thông tin trả 401.",
+        "security": [],
+        "x-roles": [],
+        "responses": {
+          "200": {
+            "description": "Thành công.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              },
+              "example": {
+                "email": "admin@example.com",
+                "password": "Admin@123"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/me": {
+      "get": {
+        "tags": [
+          "Account"
+        ],
+        "operationId": "currentUser",
+        "summary": "Xem tài khoản đang đăng nhập",
+        "description": "Quyền: AUTHENTICATED.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "CUSTOMER",
+          "ADMIN"
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrentUserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        }
+      }
+    },
+    "/api/users/me/password": {
+      "post": {
+        "tags": [
+          "Account"
+        ],
+        "operationId": "changePassword",
+        "summary": "Đổi mật khẩu",
+        "description": "Quyền: AUTHENTICATED. Mật khẩu cũ phải đúng, mật khẩu mới đủ mạnh và khác mật khẩu cũ. Không thu hồi JWT cũ.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "CUSTOMER",
+          "ADMIN"
+        ],
+        "responses": {
+          "204": {
+            "description": "Thành công, không có response body."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordRequest"
+              },
+              "example": {
+                "currentPassword": "DemoCustomer@123",
+                "newPassword": "DemoCustomer@456"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/products": {
+      "get": {
+        "tags": [
+          "Products"
+        ],
+        "operationId": "listProducts",
+        "summary": "Danh sách sản phẩm ACTIVE",
+        "description": "Quyền: PUBLIC. Chỉ trả sản phẩm ACTIVE.",
+        "security": [],
+        "x-roles": [],
+        "responses": {
+          "200": {
+            "description": "Thành công.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedProducts"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/Size"
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Products"
+        ],
+        "operationId": "createProduct",
+        "summary": "Tạo sản phẩm",
+        "description": "Quyền: ADMIN. SKU trim/viết hoa và duy nhất. Tồn > 0 ghi OPENING_BALANCE cùng transaction.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "ADMIN"
+        ],
+        "responses": {
+          "201": {
+            "description": "Đã tạo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProductRequest"
+              },
+              "example": {
+                "sku": "DEMO-001",
+                "name": "Sản phẩm demo",
+                "description": "Chỉ dùng demo",
+                "price": 120000,
+                "stockQuantity": 10
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/products/search": {
+      "get": {
+        "tags": [
+          "Products"
+        ],
+        "operationId": "searchProducts",
+        "summary": "Tìm theo tên hoặc SKU",
+        "description": "Quyền: PUBLIC. Chỉ trả sản phẩm ACTIVE.",
+        "security": [],
+        "x-roles": [],
+        "responses": {
+          "200": {
+            "description": "Thành công.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedProducts"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProductQuery"
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/Size"
+          }
+        ]
+      }
+    },
+    "/api/products/{id}": {
+      "get": {
+        "tags": [
+          "Products"
+        ],
+        "operationId": "productDetail",
+        "summary": "Chi tiết sản phẩm ACTIVE",
+        "description": "Quyền: PUBLIC. Sản phẩm INACTIVE trả 404.",
+        "security": [],
+        "x-roles": [],
+        "responses": {
+          "200": {
+            "description": "Thành công.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Products"
+        ],
+        "operationId": "updateProduct",
+        "summary": "Sửa thông tin và số tồn",
+        "description": "Quyền: ADMIN. Không đổi SKU/trạng thái. stockQuantity là số tồn tuyệt đối; ghi ADJUSTMENT_IN/OUT nếu chênh lệch khác 0.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "ADMIN"
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProductRequest"
+              },
+              "example": {
+                "name": "Sản phẩm cập nhật",
+                "description": "Demo",
+                "price": 120000,
+                "stockQuantity": 15
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Products"
+        ],
+        "operationId": "deactivateProduct",
+        "summary": "Xóa mềm sản phẩm",
+        "description": "Quyền: ADMIN. Chuyển INACTIVE, không xóa bản ghi, không đổi kho, không sinh movement. Không có ARCHIVED.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "ADMIN"
+        ],
+        "responses": {
+          "204": {
+            "description": "Thành công, không có response body."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ]
+      }
+    },
+    "/api/products/{id}/stock": {
+      "patch": {
+        "tags": [
+          "Products"
+        ],
+        "operationId": "setStock",
+        "summary": "Đặt số tồn tuyệt đối",
+        "description": "Quyền: ADMIN. Ghi lịch sử theo chênh lệch thực tế; không phải cộng thêm stockQuantity.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "ADMIN"
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStockRequest"
+              },
+              "example": {
+                "stockQuantity": 15
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/products/{productId}/inventory": {
+      "get": {
+        "tags": [
+          "Inventory"
+        ],
+        "operationId": "inventoryHistory",
+        "summary": "Xem lịch sử kho",
+        "description": "Quyền: ADMIN. Toàn bộ lịch sử, chưa phân trang; createdAt ASC, id ASC.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "ADMIN"
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InventoryMovement"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ]
+      }
+    },
+    "/api/admin/products/{productId}/inventory/adjustments": {
+      "post": {
+        "tags": [
+          "Inventory"
+        ],
+        "operationId": "adjustInventory",
+        "summary": "Điều chỉnh kho theo delta",
+        "description": "Quyền: ADMIN. quantityChange khác 0; dương ghi ADJUSTMENT_IN, âm ghi ADJUSTMENT_OUT; không cho tồn âm.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "ADMIN"
+        ],
+        "responses": {
+          "201": {
+            "description": "Đã tạo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryMovement"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdjustmentRequest"
+              },
+              "example": {
+                "quantityChange": 5,
+                "note": "Nhập bổ sung demo"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cart": {
+      "get": {
+        "tags": [
+          "Cart"
+        ],
+        "operationId": "getCart",
+        "summary": "Xem giỏ của mình",
+        "description": "Quyền: CUSTOMER. Không giữ chỗ tồn kho.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "CUSTOMER"
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CartLine"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Cart"
+        ],
+        "operationId": "clearCart",
+        "summary": "Xóa toàn bộ giỏ",
+        "description": "Quyền: CUSTOMER. Không ảnh hưởng kho.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "CUSTOMER"
+        ],
+        "responses": {
+          "204": {
+            "description": "Thành công, không có response body."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        }
+      }
+    },
+    "/api/cart/items/{productId}": {
+      "put": {
+        "tags": [
+          "Cart"
+        ],
+        "operationId": "putCartItem",
+        "summary": "Thêm hoặc đặt số lượng món",
+        "description": "Quyền: CUSTOMER. Số lượng tuyệt đối, không cộng dồn. Chỉ sản phẩm ACTIVE và số lượng không vượt tồn tại thời điểm thêm.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "CUSTOMER"
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CartLine"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuantityRequest"
+              },
+              "example": {
+                "quantity": 2
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Cart"
+        ],
+        "operationId": "removeCartItem",
+        "summary": "Xóa một món khỏi giỏ",
+        "description": "Quyền: CUSTOMER. Không ảnh hưởng kho. Món không có trong giỏ cũng trả 204.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "CUSTOMER"
+        ],
+        "responses": {
+          "204": {
+            "description": "Thành công, không có response body."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ]
+      }
+    },
+    "/api/cart/checkout": {
+      "post": {
+        "tags": [
+          "Cart"
+        ],
+        "operationId": "checkout",
+        "summary": "Tạo đơn từ toàn bộ giỏ",
+        "description": "Quyền: CUSTOMER. Không thanh toán online. Toàn bộ giỏ phải hợp lệ; tạo đơn PENDING, trừ kho, ghi SALE và xóa giỏ cùng transaction. Lỗi thì rollback toàn bộ; giỏ trống trả 409.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "CUSTOMER"
+        ],
+        "responses": {
+          "201": {
+            "description": "Đã tạo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutRequest"
+              },
+              "example": {
+                "recipientName": "Khách hàng demo",
+                "recipientPhone": "0901234567",
+                "shippingAddress": "123 Đường Demo, Hà Nội"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/orders": {
+      "post": {
+        "tags": [
+          "Orders"
+        ],
+        "operationId": "createOrder",
+        "summary": "Đặt đơn trực tiếp",
+        "description": "Quyền: CUSTOMER. Thay productId bằng ID thực. Lấy giá từ database, lưu snapshot tên/giá; lưu đơn PENDING, trừ kho và ghi SALE cùng transaction. Không có idempotency key.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "CUSTOMER"
+        ],
+        "responses": {
+          "201": {
+            "description": "Đã tạo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrderRequest"
+              },
+              "example": {
+                "recipientName": "Khách hàng demo",
+                "recipientPhone": "0901234567",
+                "shippingAddress": "123 Đường Demo, Hà Nội",
+                "items": [
+                  {
+                    "productId": 1,
+                    "quantity": 2
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/orders/me": {
+      "get": {
+        "tags": [
+          "Orders"
+        ],
+        "operationId": "myOrders",
+        "summary": "Danh sách đơn của mình",
+        "description": "Quyền: CUSTOMER. createdAt DESC, id DESC; gồm chi tiết items.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "CUSTOMER"
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedOrders"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/Size"
+          }
+        ]
+      }
+    },
+    "/api/orders/me/search": {
+      "get": {
+        "tags": [
+          "Orders"
+        ],
+        "operationId": "searchMyOrders",
+        "summary": "Tìm đơn của mình",
+        "description": "Quyền: CUSTOMER. Chỉ tìm trong đơn của tài khoản đang đăng nhập.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "CUSTOMER"
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedOrders"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Status"
+          },
+          {
+            "$ref": "#/components/parameters/OrderCode"
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/Size"
+          }
+        ]
+      }
+    },
+    "/api/orders/{id}": {
+      "get": {
+        "tags": [
+          "Orders"
+        ],
+        "operationId": "myOrderDetail",
+        "summary": "Chi tiết đơn của mình",
+        "description": "Quyền: CUSTOMER. Đơn không thuộc sở hữu trả 404, không tiết lộ đơn người khác.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "CUSTOMER"
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ]
+      }
+    },
+    "/api/orders/{id}/cancel": {
+      "patch": {
+        "tags": [
+          "Orders"
+        ],
+        "operationId": "cancelMyOrder",
+        "summary": "Hủy đơn PENDING của mình",
+        "description": "Quyền: CUSTOMER. Chỉ PENDING; hoàn kho và ghi SALE_REVERSAL cùng transaction. Hủy lại trả 409, không hoàn lần hai.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "CUSTOMER"
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ]
+      }
+    },
+    "/api/admin/orders": {
+      "get": {
+        "tags": [
+          "Admin orders"
+        ],
+        "operationId": "allOrders",
+        "summary": "Danh sách đơn toàn hệ thống",
+        "description": "Quyền: ADMIN. Có thể lọc status; createdAt DESC, id DESC.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "ADMIN"
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedOrders"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Status"
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/Size"
+          }
+        ]
+      }
+    },
+    "/api/admin/orders/search": {
+      "get": {
+        "tags": [
+          "Admin orders"
+        ],
+        "operationId": "searchAllOrders",
+        "summary": "Tìm đơn toàn hệ thống",
+        "description": "Quyền: ADMIN. Tìm theo mã đơn và/hoặc trạng thái.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "ADMIN"
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedOrders"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Status"
+          },
+          {
+            "$ref": "#/components/parameters/OrderCode"
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/Size"
+          }
+        ]
+      }
+    },
+    "/api/admin/orders/{id}": {
+      "get": {
+        "tags": [
+          "Admin orders"
+        ],
+        "operationId": "adminOrderDetail",
+        "summary": "Chi tiết bất kỳ đơn nào",
+        "description": "Quyền: ADMIN.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "ADMIN"
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ]
+      }
+    },
+    "/api/admin/orders/{id}/status": {
+      "patch": {
+        "tags": [
+          "Admin orders"
+        ],
+        "operationId": "changeOrderStatus",
+        "summary": "Đổi trạng thái đơn",
+        "description": "Quyền: ADMIN. PENDING → CONFIRMED/CANCELLED; CONFIRMED → SHIPPING/CANCELLED; SHIPPING → COMPLETED. COMPLETED/CANCELLED không chuyển tiếp. Gửi cùng status là no-op 200. Hủy hoàn kho đúng một lần. Enum đúng là COMPLETED và CANCELLED.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "ADMIN"
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrderStatusRequest"
+              },
+              "example": {
+                "status": "CONFIRMED"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Nhập riêng accessToken. Role được kiểm tra từ JWT; không dùng mật khẩu MySQL."
+      }
+    },
+    "parameters": {
+      "Page": {
+        "name": "page",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "format": "int32",
+          "minimum": 0,
+          "default": 0
+        },
+        "description": "Trang tính từ 0."
+      },
+      "Size": {
+        "name": "size",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "format": "int32",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20
+        }
+      },
+      "Status": {
+        "name": "status",
+        "in": "query",
+        "schema": {
+          "$ref": "#/components/schemas/OrderStatus"
+        },
+        "description": "Không truyền để lấy mọi trạng thái."
+      },
+      "OrderCode": {
+        "name": "code",
+        "in": "query",
+        "schema": {
+          "type": "string",
+          "maxLength": 32,
+          "default": ""
+        },
+        "description": "Tìm chứa chuỗi trong orderCode; trim và chuẩn hóa chữ hoa."
+      },
+      "ProductQuery": {
+        "name": "q",
+        "in": "query",
+        "schema": {
+          "type": "string",
+          "maxLength": 100,
+          "default": ""
+        },
+        "description": "Tìm chứa chuỗi theo tên hoặc SKU, không phân biệt hoa thường, trim khoảng trắng."
+      }
+    },
+    "schemas": {
+      "Role": {
+        "type": "string",
+        "enum": [
+          "CUSTOMER",
+          "ADMIN"
+        ]
+      },
+      "ProductStatus": {
+        "type": "string",
+        "enum": [
+          "ACTIVE",
+          "INACTIVE"
+        ]
+      },
+      "OrderStatus": {
+        "type": "string",
+        "enum": [
+          "PENDING",
+          "CONFIRMED",
+          "SHIPPING",
+          "COMPLETED",
+          "CANCELLED"
+        ]
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "required": [
+          "fullName",
+          "email",
+          "password"
+        ],
+        "properties": {
+          "fullName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": ".*\\S.*",
+            "description": "Không được rỗng hoặc chỉ chứa khoảng trắng."
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 190
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "minLength": 8,
+            "maxLength": 72,
+            "description": "Không được chỉ chứa khoảng trắng; tối đa 72 byte UTF-8. Đăng ký không nhận role."
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 190
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "minLength": 8,
+            "maxLength": 72
+          }
+        }
+      },
+      "AuthResponse": {
+        "type": "object",
+        "required": [
+          "accessToken",
+          "tokenType",
+          "email",
+          "role"
+        ],
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "description": "Token thực do server cấp; không lưu token vào Git."
+          },
+          "tokenType": {
+            "type": "string",
+            "enum": [
+              "Bearer"
+            ]
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        }
+      },
+      "CurrentUserResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "fullName",
+          "roles"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Role"
+            }
+          }
+        }
+      },
+      "PasswordRequest": {
+        "type": "object",
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ],
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "format": "password",
+            "minLength": 1,
+            "description": "Mật khẩu hiện tại; không được chỉ có khoảng trắng."
+          },
+          "newPassword": {
+            "type": "string",
+            "format": "password",
+            "minLength": 12,
+            "maxLength": 72,
+            "pattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).*$",
+            "description": "Khác mật khẩu hiện tại; đủ hoa/thường/số/ký tự đặc biệt; tối đa 72 byte UTF-8."
+          }
+        }
+      },
+      "CreateProductRequest": {
+        "type": "object",
+        "required": [
+          "sku",
+          "name",
+          "price",
+          "stockQuantity"
+        ],
+        "properties": {
+          "sku": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": ".*\\S.*",
+            "description": "Không được rỗng hoặc chỉ chứa khoảng trắng."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": ".*\\S.*",
+            "description": "Không được rỗng hoặc chỉ chứa khoảng trắng."
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000,
+            "nullable": true
+          },
+          "price": {
+            "type": "number",
+            "minimum": 0.01,
+            "maximum": 9999999999999.99,
+            "multipleOf": 0.01,
+            "example": 120000
+          },
+          "stockQuantity": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "UpdateProductRequest": {
+        "type": "object",
+        "required": [
+          "name",
+          "price",
+          "stockQuantity"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": ".*\\S.*",
+            "description": "Không được rỗng hoặc chỉ chứa khoảng trắng."
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000,
+            "nullable": true
+          },
+          "price": {
+            "type": "number",
+            "minimum": 0.01,
+            "maximum": 9999999999999.99,
+            "multipleOf": 0.01,
+            "example": 120000
+          },
+          "stockQuantity": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "UpdateStockRequest": {
+        "type": "object",
+        "required": [
+          "stockQuantity"
+        ],
+        "properties": {
+          "stockQuantity": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "description": "Số tồn mới tuyệt đối, không phải lượng cộng thêm."
+          }
+        }
+      },
+      "ProductResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "sku",
+          "name",
+          "description",
+          "price",
+          "stockQuantity",
+          "status",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sku": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number",
+            "minimum": 0.01,
+            "maximum": 9999999999999.99,
+            "multipleOf": 0.01,
+            "example": 120000
+          },
+          "stockQuantity": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProductStatus"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "PagedProducts": {
+        "type": "object",
+        "required": [
+          "items",
+          "page",
+          "size",
+          "totalElements",
+          "totalPages"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductResponse"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "QuantityRequest": {
+        "type": "object",
+        "required": [
+          "quantity"
+        ],
+        "properties": {
+          "quantity": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "description": "Số lượng tuyệt đối của món trong giỏ."
+          }
+        }
+      },
+      "CartLine": {
+        "type": "object",
+        "required": [
+          "productId",
+          "sku",
+          "name",
+          "unitPrice",
+          "stockQuantity",
+          "productStatus",
+          "quantity"
+        ],
+        "properties": {
+          "productId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sku": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "unitPrice": {
+            "type": "number",
+            "minimum": 0.01,
+            "maximum": 9999999999999.99,
+            "multipleOf": 0.01,
+            "example": 120000
+          },
+          "stockQuantity": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "productStatus": {
+            "$ref": "#/components/schemas/ProductStatus"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          }
+        }
+      },
+      "CheckoutRequest": {
+        "type": "object",
+        "required": [
+          "recipientName",
+          "recipientPhone",
+          "shippingAddress"
+        ],
+        "properties": {
+          "recipientName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": ".*\\S.*",
+            "description": "Không được rỗng hoặc chỉ chứa khoảng trắng."
+          },
+          "recipientPhone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 30,
+            "pattern": ".*\\S.*",
+            "description": "Không được rỗng hoặc chỉ chứa khoảng trắng."
+          },
+          "shippingAddress": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "pattern": ".*\\S.*",
+            "description": "Không được rỗng hoặc chỉ chứa khoảng trắng."
+          }
+        }
+      },
+      "CreateOrderItemRequest": {
+        "type": "object",
+        "required": [
+          "productId",
+          "quantity"
+        ],
+        "properties": {
+          "productId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          }
+        }
+      },
+      "CreateOrderRequest": {
+        "type": "object",
+        "required": [
+          "recipientName",
+          "recipientPhone",
+          "shippingAddress",
+          "items"
+        ],
+        "properties": {
+          "recipientName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": ".*\\S.*",
+            "description": "Không được rỗng hoặc chỉ chứa khoảng trắng."
+          },
+          "recipientPhone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 30,
+            "pattern": ".*\\S.*",
+            "description": "Không được rỗng hoặc chỉ chứa khoảng trắng."
+          },
+          "shippingAddress": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "pattern": ".*\\S.*",
+            "description": "Không được rỗng hoặc chỉ chứa khoảng trắng."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreateOrderItemRequest"
+            },
+            "minItems": 1,
+            "description": "Không null, không có phần tử null, không lặp productId. Không truyền giá; server lấy giá từ database."
+          }
+        }
+      },
+      "OrderItemResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "productId",
+          "productName",
+          "unitPrice",
+          "quantity",
+          "lineTotal"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "productId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "productName": {
+            "type": "string"
+          },
+          "unitPrice": {
+            "type": "number",
+            "minimum": 0.01,
+            "maximum": 9999999999999.99,
+            "multipleOf": 0.01,
+            "example": 120000
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          },
+          "lineTotal": {
+            "type": "number",
+            "minimum": 0.01
+          }
+        }
+      },
+      "OrderResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "orderCode",
+          "userId",
+          "recipientName",
+          "recipientPhone",
+          "shippingAddress",
+          "status",
+          "totalAmount",
+          "createdAt",
+          "updatedAt",
+          "items"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "orderCode": {
+            "type": "string",
+            "example": "ORD-8BA7931CDCB5"
+          },
+          "userId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "recipientName": {
+            "type": "string"
+          },
+          "recipientPhone": {
+            "type": "string"
+          },
+          "shippingAddress": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrderStatus"
+          },
+          "totalAmount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "createdAt": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?$",
+            "example": "2026-10-27T10:30:00.123456",
+            "description": "LocalDateTime, không có offset/timezone."
+          },
+          "updatedAt": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?$",
+            "example": "2026-10-27T10:30:00.123456",
+            "description": "LocalDateTime, không có offset/timezone."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderItemResponse"
+            }
+          }
+        }
+      },
+      "PagedOrders": {
+        "type": "object",
+        "required": [
+          "items",
+          "page",
+          "size",
+          "totalElements",
+          "totalPages"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderResponse"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "UpdateOrderStatusRequest": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/OrderStatus"
+          }
+        }
+      },
+      "AdjustmentRequest": {
+        "type": "object",
+        "required": [
+          "quantityChange"
+        ],
+        "properties": {
+          "quantityChange": {
+            "type": "integer",
+            "format": "int32",
+            "not": {
+              "enum": [
+                0
+              ]
+            },
+            "description": "Delta khác 0. Tồn sau điều chỉnh trong khoảng 0..2147483647."
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500,
+            "nullable": true
+          }
+        }
+      },
+      "InventoryMovement": {
+        "type": "object",
+        "description": "stockAfter = stockBefore + quantityChange. orderId có thể null khi không phát sinh từ đơn hàng.",
+        "required": [
+          "id",
+          "productId",
+          "orderId",
+          "type",
+          "quantityChange",
+          "stockBefore",
+          "stockAfter",
+          "referenceCode",
+          "note",
+          "actorUserId",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "productId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "orderId": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "OPENING_BALANCE",
+            "PURCHASE",
+              "SALE",
+              "SALE_REVERSAL",
+              "ADJUSTMENT_IN",
+              "ADJUSTMENT_OUT"
+            ],
+            "description": "Các loại hiện được service phát sinh. Database còn cho phép PURCHASE nhưng chưa có API nhập hàng riêng."
+          },
+          "quantityChange": {
+            "type": "integer",
+            "format": "int32",
+            "not": {
+              "enum": [
+                0
+              ]
+            }
+          },
+          "stockBefore": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "stockAfter": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "referenceCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "note": {
+            "type": "string",
+            "nullable": true
+          },
+          "actorUserId": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?$",
+            "example": "2026-10-27T10:30:00.123456",
+            "description": "LocalDateTime, không có offset/timezone."
+          }
+        }
+      },
+      "ApiError": {
+        "type": "object",
+        "required": [
+          "timestamp",
+          "status",
+          "code",
+          "message",
+          "path"
+        ],
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-27T03:30:00Z"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "example": 409
+          },
+          "code": {
+            "type": "string",
+            "example": "BUSINESS_CONFLICT"
+          },
+          "message": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "fields": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true,
+            "description": "Lỗi validation theo tên trường; null hoặc có thể không xuất hiện khi không áp dụng."
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "required": [
+          "service",
+          "status",
+          "stage"
+        ],
+        "properties": {
+          "service": {
+            "type": "string",
+            "example": "single-store-service"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "UP"
+            ]
+          },
+          "stage": {
+            "type": "string",
+            "example": "base"
+          }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Dữ liệu/tham số không hợp lệ (400).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            },
+            "example": {
+              "timestamp": "2026-10-27T03:30:00Z",
+              "status": 400,
+              "code": "INVALID_REQUEST",
+              "message": "Dữ liệu/tham số không hợp lệ (400).",
+              "path": "/api/orders",
+              "fields": null
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Chưa xác thực, JWT sai/hết hạn hoặc thông tin đăng nhập sai (401).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            },
+            "example": {
+              "timestamp": "2026-10-27T03:30:00Z",
+              "status": 401,
+              "code": "UNAUTHORIZED",
+              "message": "Chưa xác thực, JWT sai/hết hạn hoặc thông tin đăng nhập sai (401).",
+              "path": "/api/orders",
+              "fields": null
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Đã đăng nhập nhưng không đúng role (403).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            },
+            "example": {
+              "timestamp": "2026-10-27T03:30:00Z",
+              "status": 403,
+              "code": "FORBIDDEN",
+              "message": "Đã đăng nhập nhưng không đúng role (403).",
+              "path": "/api/orders",
+              "fields": null
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Không tồn tại, sản phẩm INACTIVE khi đọc công khai, hoặc đơn không thuộc khách hàng (404).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            },
+            "example": {
+              "timestamp": "2026-10-27T03:30:00Z",
+              "status": 404,
+              "code": "RESOURCE_NOT_FOUND",
+              "message": "Không tồn tại, sản phẩm INACTIVE khi đọc công khai, hoặc đơn không thuộc khách hàng (404).",
+              "path": "/api/orders",
+              "fields": null
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Xung đột nghiệp vụ/dữ liệu/cạnh tranh (409).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            },
+            "example": {
+              "timestamp": "2026-10-27T03:30:00Z",
+              "status": 409,
+              "code": "BUSINESS_CONFLICT",
+              "message": "Xung đột nghiệp vụ/dữ liệu/cạnh tranh (409).",
+              "path": "/api/orders",
+              "fields": null
+            }
+          }
+        }
+      },
+      "DatabaseError": {
+        "description": "Không thể truy cập database (500).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            },
+            "example": {
+              "timestamp": "2026-10-27T03:30:00Z",
+              "status": 500,
+              "code": "DATABASE_ERROR",
+              "message": "Không thể truy cập database (500).",
+              "path": "/api/orders",
+              "fields": null
+            }
+          }
+        }
+      }
+    }
+  }
+}

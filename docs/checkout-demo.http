@@ -1,0 +1,140 @@
+# Cart/checkout flow for IntelliJ HTTP Client; see DEMO_GUIDE.md.
+# Select h2 or configure a private docker environment before running.
+# Use a fresh SKU/email per independent run. Do NOT commit real credentials/tokens.
+@customerEmail = demo-customer-001@example.test
+@customerPassword = DemoCustomer@123
+@sku = DEMO-HTTP-001
+
+### 1. Health / OpenAPI
+GET {{base}}/api/health
+
+> {% client.test("API ready", function() { client.assert(response.status === 200); client.assert(response.body.status === "UP"); }); %}
+
+### 2. Login admin; stores token locally in HTTP Client globals
+POST {{base}}/api/auth/login
+Content-Type: application/json
+
+{"email":"{{adminEmail}}","password":"{{adminPassword}}"}
+
+> {% client.test("admin login", function() { client.assert(response.status === 200); client.assert(response.body.role === "ADMIN"); client.assert(!!response.body.accessToken); client.global.set("adminToken", response.body.accessToken); }); %}
+
+### 3. Create stock 10, price 120000
+POST {{base}}/api/products
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"sku":"{{sku}}","name":"Demo product","description":"HTTP demo","price":120000,"stockQuantity":10}
+
+> {% client.test("product created", function() { client.assert(response.status === 201); client.assert(response.body.id > 0); client.global.set("productId", response.body.id); }); %}
+
+### 4. Register customer; do not run twice with same email (409)
+POST {{base}}/api/auth/register
+Content-Type: application/json
+
+{"fullName":"Demo customer","email":"{{customerEmail}}","password":"{{customerPassword}}"}
+
+> {% client.test("registered", function() { client.assert(response.status === 201); client.assert(response.body.role === "CUSTOMER"); client.assert(!!response.body.accessToken); client.global.set("customerToken", response.body.accessToken); }); %}
+
+### 5. Account, authorized GET
+GET {{base}}/api/users/me
+Authorization: Bearer {{customerToken}}
+
+> {% client.test("current customer", function() { client.assert(response.status === 200); client.assert(response.body.roles.indexOf("CUSTOMER") >= 0); }); %}
+
+### 6. Page/search/detail
+GET {{base}}/api/products/search?q={{sku}}&page=0&size=10
+
+> {% client.test("search page", function() { client.assert(response.status === 200); client.assert(response.body.page === 0); client.assert(response.body.items.length > 0); }); %}
+
+### 7. Customer cannot create products: expected 403
+POST {{base}}/api/products
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{"sku":"FORBIDDEN-1","name":"Forbidden","price":10,"stockQuantity":1}
+
+> {% client.test("customer write forbidden", function() { client.assert(response.status === 403); }); %}
+
+### 8. Cart quantity is absolute; stock stays 10
+PUT {{base}}/api/cart/items/{{productId}}
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{"quantity":2}
+
+> {% client.test("cart updated", function() { client.assert(response.status === 200); client.assert(response.body.length === 1); }); %}
+
+### 9. Checkout: expected 201, PENDING, total 240000, stock becomes 8
+POST {{base}}/api/cart/checkout
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{"recipientName":"Demo receiver","recipientPhone":"0901234567","shippingAddress":"123 Demo address"}
+
+> {% client.test("order created", function() { client.assert(response.status === 201); client.assert(response.body.status === "PENDING"); client.assert(response.body.totalAmount === 240000); client.assert(response.body.id > 0); client.global.set("orderId", response.body.id); client.global.set("orderCode", response.body.orderCode); }); %}
+
+### 10. Verify stock 8
+GET {{base}}/api/products/{{productId}}
+
+> {% client.test("stock after checkout", function() { client.assert(response.status === 200); client.assert(response.body.stockQuantity === 8); }); %}
+
+### 11. Admin reads detail
+GET {{base}}/api/admin/orders/{{orderId}}
+Authorization: Bearer {{adminToken}}
+
+> {% client.test("admin order detail", function() { client.assert(response.status === 200); client.assert(response.body.status === "PENDING"); }); %}
+
+### 12. Search own order
+GET {{base}}/api/orders/me/search?code={{orderCode}}&page=0&size=10
+Authorization: Bearer {{customerToken}}
+
+> {% client.test("own order search", function() { client.assert(response.status === 200); client.assert(response.body.totalElements === 1); }); %}
+
+### 13. Cancel own PENDING: expected 200, CANCELLED, stock returns to 10
+PATCH {{base}}/api/orders/{{orderId}}/cancel
+Authorization: Bearer {{customerToken}}
+
+> {% client.test("cancel own order", function() { client.assert(response.status === 200); client.assert(response.body.status === "CANCELLED"); }); %}
+
+### 14. Repeat cancellation: expected 409; no second stock restoration
+PATCH {{base}}/api/orders/{{orderId}}/cancel
+Authorization: Bearer {{customerToken}}
+
+> {% client.test("repeat cancellation denied", function() { client.assert(response.status === 409); }); %}
+
+### 15. Verify stock 10
+GET {{base}}/api/products/{{productId}}
+
+> {% client.test("stock restored once", function() { client.assert(response.status === 200); client.assert(response.body.stockQuantity === 10); }); %}
+
+### 16. Inspect opening / SALE / SALE_REVERSAL and actors
+GET {{base}}/api/admin/products/{{productId}}/inventory
+Authorization: Bearer {{adminToken}}
+
+> {% client.test("audit balances", function() { client.assert(response.status === 200); client.assert(response.body.some(function(m) { return m.type === "SALE" && m.quantityChange === -2; })); client.assert(response.body.some(function(m) { return m.type === "SALE_REVERSAL" && m.quantityChange === 2; })); response.body.forEach(function(m) { client.assert(m.stockAfter === m.stockBefore + m.quantityChange); }); }); %}
+
+### 17. Missing JWT: expected 401
+GET {{base}}/api/orders/me
+
+> {% client.test("missing JWT", function() { client.assert(response.status === 401); }); %}
+
+### 18. Invalid page: expected 400
+GET {{base}}/api/products?page=-1
+
+> {% client.test("invalid page", function() { client.assert(response.status === 400); }); %}
+
+### 19. Missing product: expected 404
+GET {{base}}/api/products/9223372036854775807
+
+> {% client.test("missing product", function() { client.assert(response.status === 404); }); %}
+
+### 20. Soft delete demo product only: expected 204
+DELETE {{base}}/api/products/{{productId}}
+Authorization: Bearer {{adminToken}}
+
+> {% client.test("soft delete", function() { client.assert(response.status === 204); }); %}
+
+### 21. Deleted product no longer publicly visible: expected 404
+GET {{base}}/api/products/{{productId}}
+
+> {% client.test("inactive product hidden", function() { client.assert(response.status === 404); }); %}

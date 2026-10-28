@@ -3,6 +3,7 @@ package vn.edu.sales.api.system.order;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
 import vn.edu.sales.application.services.OrderService;
 import vn.edu.sales.domain.model.OrderStatus;
 
@@ -36,9 +37,9 @@ public class AdminOrderController {
     }
 
     @PatchMapping("/{id}/status")
-    public OrderController.OrderResponse updateStatus(@PathVariable Long id,
+    public OrderController.OrderResponse updateStatus(Authentication authentication, @PathVariable Long id,
                                                       @Valid @RequestBody UpdateOrderStatusRequest request) {
-        return OrderController.OrderResponse.from(orderService.changeStatus(id, request.status()));
+        return OrderController.OrderResponse.from(orderService.changeStatus(authentication.getName(), id, request.status()));
     }
 
     public record UpdateOrderStatusRequest(@NotNull OrderStatus status) {

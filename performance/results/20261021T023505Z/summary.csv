@@ -1,0 +1,5 @@
+phase,users,duration_seconds,requests,failures,failure_percent,rps,p50_ms,p95_ms,p99_ms,exit_code
+smoke,5,60,145,0,0.0,2.46,8.0,87.0,100.0,0
+baseline,10,120,596,0,0.0,5.01,5.0,85.0,90.0,0
+main,30,300,4437,0,0.0,14.82,3.0,82.0,88.0,0
+high,60,300,8765,0,0.0,29.27,3.0,82.0,91.0,0
