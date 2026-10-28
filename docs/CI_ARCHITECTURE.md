@@ -1,4 +1,4 @@
-# D7 — kiểm tra kiến trúc và MySQL trong CI
+# Kiểm tra kiến trúc và MySQL trong CI
 
 ## Maven lifecycle và test kiến trúc
 
