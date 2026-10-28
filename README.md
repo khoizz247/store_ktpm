@@ -1,5 +1,7 @@
 # Single Store Service
 
+Phần đặc tả chi tiết của project ở trong [Đặc tả](https://docs.google.com/document/d/1xJSMMyIZH-bQcznc303Pgg2bISfpnnQMS04c3AmLzeQ/edit?tab=t.0#heading=h.bu5gafmtg044)
+
 Backend một cửa hàng: công bố sản phẩm, đặt đơn và quản lý tồn kho. Dùng Java 21,
 Spring Boot, REST/JSON và JWT; chưa có thanh toán onl, quản lý nhiều cửa hàng.
 
