@@ -12,7 +12,7 @@ Spring Boot, REST/JSON và JWT; chưa có thanh toán onl, quản lý nhiều c�
 | ADMIN | Đổi mật khẩu, quản lý sản phẩm/kho, xem đơn toàn hệ thống và đổi trạng thái |
 
 Luồng: HTTP + JWT filter → Controller → Service → Repository/port → Adapter JPA/JDBC → database.
-Nghiệp vụ/domain không import web/DB. Đơn, trừ/hoàn kho và audit dùng cùng transaction;
+Đơn, trừ/hoàn kho và audit dùng cùng transaction;
 checkout thành công mới xóa giỏ. Giá lấy từ database và lưu snapshot tên/giá trong đơn.
 Xóa mềm sản phẩm `INACTIVE`.
 Đơn đi theo `PENDING → CONFIRMED → SHIPPING → COMPLETED`; hủy `CANCELLED`.
@@ -129,8 +129,3 @@ Có thể thêm `--exercise-orders`, `--exercise-cart` hoặc `--exercise-cart-c
 Kaggle CPU: import `performance/kaggle_load_test.ipynb`, bật Internet, nhập SHA đã push,
 chạy đủ cell và tải ZIP kết quả; [hướng dẫn chạy](performance/README.md).
 
-Đọc log: `docker compose logs --tail=150 api mysql`. `401`: thiếu/sai token;
-`403`: sai role; `404`: sai ID/không sở hữu/INACTIVE; `409`: đọc message để kiểm tra
-trùng dữ liệu, thiếu kho hoặc trạng thái. `/api/health` chỉ xác nhận tiến trình,
-không xác nhận database. `docker compose stop` giữ dữ liệu; `up -d` chạy lại;
-sửa Java dùng `up --build`. Không dùng `down -v` để chữa lỗi vì sẽ mất volume MySQL.
