@@ -1,6 +1,5 @@
 # Chạy API và MySQL của nhóm
 
-## Phạm vi D4
 
 Compose dùng project single-store-team, database single_store_team, MySQL host
 3309 và API host 18081. Không dùng database/volume single_store của bản tham chiếu.
