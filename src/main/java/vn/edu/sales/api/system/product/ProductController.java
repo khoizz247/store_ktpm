@@ -1,4 +1,4 @@
-package vn.edu.sales.api.product;
+package vn.edu.sales.api.system.product;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
