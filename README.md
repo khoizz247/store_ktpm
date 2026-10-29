@@ -161,7 +161,7 @@ Workbench: Standard TCP/IP, host `127.0.0.1`, port `3309`, username/password the
 `MYSQL_USER`/`MYSQL_PASSWORD`, schema `single_store_team`. Không phải MySQL Windows
 cổng `3306`; mật khẩu database cũng không phải mật khẩu đăng nhập API.
 
-## Dùng thử tính năng và xem đặc tả API
+## 8. Dùng thử tính năng và xem đặc tả API
 
 - File chuẩn OpenAPI: [docs/openapi.json](docs/openapi.json), có request/response,
   tham số, validation, JWT, quyền và lỗi cho đủ 28 thao tác API.
@@ -195,7 +195,7 @@ trạng thái: xem nhóm tương ứng trong OpenAPI/Swagger. ADMIN không dùng
 Có thể chạy [demo đặt đơn](docs/order-demo.http) hoặc [demo giỏ](docs/checkout-demo.http)
 bằng IntelliJ HTTP Client; dùng môi trường `h2` hoặc khai báo môi trường Docker riêng.
 
-## 8. Kiểm thử và xử lý lỗi
+## 9. Kiểm thử và xử lý lỗi
 
 ```powershell
 .\mvnw.cmd clean verify
