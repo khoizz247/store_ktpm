@@ -57,6 +57,10 @@ Backend một cửa hàng: công bố sản phẩm, đặt đơn và quản lý 
 - Đơn, trừ/hoàn kho và audit dùng cùng transaction, checkout thành công mới xóa giỏ. 
 - Giá lấy từ database và lưu snapshot tên/giá trong đơn.
 - Xóa mềm sản phẩm `INACTIVE`.
+- JWT được đối chiếu với DB ở mỗi request: tài khoản bị khóa, bị đổi role hoặc vừa đổi mật khẩu (`token_version` tăng) thì token cũ hết hiệu lực ngay, phải đăng nhập lại.
+- Đăng nhập sai 5 lần trong 15 phút với cùng email thì bị chặn tạm (`429 TOO_MANY_ATTEMPTS`, header `Retry-After`). Chỉnh bằng `LOGIN_MAX_FAILURES`, `LOGIN_LOCK_DURATION`.
+- Mật khẩu đăng ký và đổi mật khẩu: 12-72 ký tự, đủ chữ hoa, chữ thường, số, ký tự đặc biệt.
+- Profile `mysql` bắt buộc có `JWT_SECRET` (Base64, ≥ 32 byte); CORS mặc định chỉ same-origin, mở thêm bằng `CORS_ALLOWED_ORIGINS`.
 - Đơn đi theo `PENDING → CONFIRMED → SHIPPING → COMPLETED`; hủy `CANCELLED`.
 
 ## 5. Sơ dồ ER

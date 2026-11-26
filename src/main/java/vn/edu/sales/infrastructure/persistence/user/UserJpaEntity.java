@@ -32,6 +32,9 @@ public class UserJpaEntity {
     @Column(nullable = false, length = 20)
     private UserStatus status;
 
+    @Column(name = "token_version", nullable = false)
+    private int tokenVersion;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -45,12 +48,18 @@ public class UserJpaEntity {
 
     public UserJpaEntity(Long id, String email, String passwordHash, String fullName,
                          Role role, UserStatus status) {
+        this(id, email, passwordHash, fullName, role, status, 0);
+    }
+
+    public UserJpaEntity(Long id, String email, String passwordHash, String fullName,
+                         Role role, UserStatus status, int tokenVersion) {
         this.id = id;
         this.email = email;
         this.passwordHash = passwordHash;
         this.fullName = fullName;
         this.role = role;
         this.status = status;
+        this.tokenVersion = tokenVersion;
     }
 
     public Long getId() {
@@ -75,6 +84,10 @@ public class UserJpaEntity {
 
     public UserStatus getStatus() {
         return status;
+    }
+
+    public int getTokenVersion() {
+        return tokenVersion;
     }
 
     public LocalDateTime getCreatedAt() {

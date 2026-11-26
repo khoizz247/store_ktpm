@@ -1,5 +1,6 @@
 package vn.edu.sales.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import vn.edu.sales.application.port.out.*;
@@ -8,8 +9,12 @@ import vn.edu.sales.application.service.ProductService;
 import vn.edu.sales.application.services.AuthService;
 import vn.edu.sales.application.services.CurrentUserService;
 import vn.edu.sales.application.services.CartService;
+import vn.edu.sales.application.services.LoginAttemptLimiter;
 import vn.edu.sales.application.services.OrderService;
 import vn.edu.sales.application.services.PasswordChangeService;
+
+import java.time.Clock;
+import java.time.Duration;
 
 @Configuration
 public class ApplicationBeanConfig {
@@ -39,8 +44,16 @@ public class ApplicationBeanConfig {
     }
 
     @Bean
-    AuthService authService(UserRepository users, PasswordHasher passwords, TokenProvider tokens) {
-        return new AuthService(users, passwords, tokens);
+    LoginAttemptLimiter loginAttemptLimiter(
+            @Value("${app.security.login.max-failures:5}") int maxFailures,
+            @Value("${app.security.login.lock-duration:PT15M}") Duration lockDuration) {
+        return new LoginAttemptLimiter(maxFailures, lockDuration, Clock.systemUTC());
+    }
+
+    @Bean
+    AuthService authService(UserRepository users, PasswordHasher passwords, TokenProvider tokens,
+                            LoginAttemptLimiter loginAttempts) {
+        return new AuthService(users, passwords, tokens, loginAttempts);
     }
 
     @Bean
