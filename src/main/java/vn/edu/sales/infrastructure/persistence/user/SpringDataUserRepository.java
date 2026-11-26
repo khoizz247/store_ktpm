@@ -12,7 +12,9 @@ public interface SpringDataUserRepository extends JpaRepository<UserJpaEntity,Lo
 
     boolean existsByEmail(String email);
 
-    @Modifying
-    @Query("update UserJpaEntity u set u.passwordHash = :hash where u.id = :id")
+    // Tăng token_version để mọi JWT cấp trước lần đổi mật khẩu này hết hiệu lực.
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update UserJpaEntity u set u.passwordHash = :hash, u.tokenVersion = u.tokenVersion + 1, "
+            + "u.updatedAt = CURRENT_TIMESTAMP where u.id = :id")
     int updatePassword(@Param("id") Long id, @Param("hash") String hash);
 }

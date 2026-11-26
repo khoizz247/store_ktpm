@@ -29,5 +29,9 @@ spring:
       enabled: false
 
 app:
+  # Không có giá trị mặc định: thiếu JWT_SECRET thì ứng dụng dừng ngay khi khởi động,
+  # thay vì lặng lẽ dùng secret local đã công khai trong application.yml.
+  jwt:
+    secret: ${JWT_SECRET}
   seed:
     enabled: false

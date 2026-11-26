@@ -7,11 +7,11 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import vn.edu.sales.application.port.out.PasswordHasher;
 import vn.edu.sales.application.port.out.UserRepository;
+import vn.edu.sales.application.services.PasswordPolicy;
 import vn.edu.sales.domain.model.Role;
 import vn.edu.sales.domain.model.User;
 import vn.edu.sales.domain.model.UserStatus;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
 @Configuration
@@ -25,8 +25,7 @@ public class BootstrapAdminConfig {
             if (email.isBlank() && password.isBlank()) return;
             if (email.isBlank() || password.isBlank())
                 throw new IllegalStateException("Cần đặt cả BOOTSTRAP_ADMIN_EMAIL và BOOTSTRAP_ADMIN_PASSWORD");
-            if (password.length() < 12 || password.getBytes(StandardCharsets.UTF_8).length > 72
-                    || !password.matches("(?s)(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).*"))
+            if (!PasswordPolicy.isStrong(password))
                 throw new IllegalStateException("BOOTSTRAP_ADMIN_PASSWORD cần 12-72 ký tự đủ độ mạnh");
             String normalized = email.trim().toLowerCase(Locale.ROOT);
             if (!normalized.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"))

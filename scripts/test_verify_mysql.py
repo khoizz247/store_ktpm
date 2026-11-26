@@ -17,7 +17,7 @@ class VerifyMysqlScriptTest(unittest.TestCase):
     def test_readiness_passes_without_exercising_orders(self):
         with patch.object(smoke, "exercise_orders") as exercise:
             self.run_readiness(["single_store_team", "\n".join(smoke.EXPECTED_TABLES | {"flyway_schema_history"}),
-                                "1\t1\n2\t1", "0"])
+                                "1\t1\n2\t1\n3\t1", "0"])
             exercise.assert_not_called()
 
     def test_wrong_database_is_rejected(self):
@@ -29,9 +29,9 @@ class VerifyMysqlScriptTest(unittest.TestCase):
             self.run_readiness(["single_store_team", "users\nproducts"])
 
     def test_failed_migration_is_rejected(self):
-        with self.assertRaisesRegex(RuntimeError, "V1 and V2"):
+        with self.assertRaisesRegex(RuntimeError, "V1, V2 and V3"):
             self.run_readiness(["single_store_team", "\n".join(smoke.EXPECTED_TABLES | {"flyway_schema_history"}),
-                                "1\t1\n2\t0"])
+                                "1\t1\n2\t1\n3\t0"])
 
     def test_order_smoke_checks_stock_audit_owner_and_isolation(self):
         replies = [(201, {"role": "CUSTOMER"}), (200, {"accessToken": "test-token"}), (401, None),

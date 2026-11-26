@@ -187,13 +187,13 @@ def main():
     tables = set(sql("SHOW TABLES").splitlines())
     check(EXPECTED_TABLES <= tables, "Missing business tables.")
     check("flyway_schema_history" in tables, "Missing Flyway schema history.")
-    history = sql("SELECT version,success FROM flyway_schema_history WHERE version IN ('1','2') ORDER BY installed_rank")
-    check(set(history.splitlines()) == {"1\t1", "2\t1"}, "V1 and V2 must both succeed.")
+    history = sql("SELECT version,success FROM flyway_schema_history WHERE version IN ('1','2','3') ORDER BY installed_rank")
+    check(set(history.splitlines()) == {"1\t1", "2\t1", "3\t1"}, "V1, V2 and V3 must all succeed.")
     check(sql("SELECT COUNT(*) FROM flyway_schema_history WHERE success=0") == "0", "Failed migration found.")
     status, health = request(args.base_url, "/api/health")
     check(status == 200 and health.get("status") == "UP", "API health failed.")
     check(request(args.base_url, "/v3/api-docs")[0] == 200, "OpenAPI is unavailable.")
-    print("PASS readiness: single_store_team, six business tables, Flyway V1/V2, API health and OpenAPI.")
+    print("PASS readiness: single_store_team, six business tables, Flyway V1-V3, API health and OpenAPI.")
     if args.exercise_orders:
         exercise_orders(args.base_url)
     elif args.exercise_cart:

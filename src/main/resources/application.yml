@@ -32,10 +32,19 @@ server:
 
 app:
   jwt:
+    # Chỉ dùng cho H2 local. Profile mysql bắt buộc đặt JWT_SECRET.
     secret: ${JWT_SECRET:c2luZ2xlLXN0b3JlLXNlcnZpY2UtbG9jYWwtb25seS1zZWNyZXQtMjAyNi1jaGFuZ2UtbWU=}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
   seed:
     enabled: true
+  security:
+    login:
+      # Khóa tạm một email sau N lần đăng nhập sai trong khoảng lock-duration.
+      max-failures: ${LOGIN_MAX_FAILURES:5}
+      lock-duration: ${LOGIN_LOCK_DURATION:PT15M}
+  cors:
+    # Danh sách origin cách nhau bởi dấu phẩy; để trống = chỉ same-origin.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:}
 
 springdoc:
   swagger-ui:

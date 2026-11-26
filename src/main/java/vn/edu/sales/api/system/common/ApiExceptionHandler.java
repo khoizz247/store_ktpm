@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.PessimisticLockingFailureException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -20,6 +21,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import vn.edu.sales.domain.exception.BusinessConflictException;
 import vn.edu.sales.domain.exception.InvalidCredentialsException;
 import vn.edu.sales.domain.exception.ResourceNotFoundException;
+import vn.edu.sales.domain.exception.TooManyAttemptsException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -61,6 +63,14 @@ public class ApiExceptionHandler {
     @ExceptionHandler(InvalidCredentialsException.class)
     ResponseEntity<ApiError> handleUnauthorized(InvalidCredentialsException exception, HttpServletRequest request) {
         return error(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", exception.getMessage(), request.getRequestURI(), null);
+    }
+
+    @ExceptionHandler(TooManyAttemptsException.class)
+    ResponseEntity<ApiError> handleTooManyAttempts(TooManyAttemptsException exception, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(exception.retryAfterSeconds()))
+                .body(ApiError.of(HttpStatus.TOO_MANY_REQUESTS.value(), "TOO_MANY_ATTEMPTS",
+                        exception.getMessage(), request.getRequestURI(), null));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

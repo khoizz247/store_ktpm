@@ -1701,9 +1701,9 @@
           "password": {
             "type": "string",
             "format": "password",
-            "minLength": 8,
+            "minLength": 12,
             "maxLength": 72,
-            "description": "Không được chỉ chứa khoảng trắng; tối đa 72 byte UTF-8. Đăng ký không nhận role."
+            "description": "12-72 ký tự (tối đa 72 byte UTF-8), gồm chữ hoa, chữ thường, số và ký tự đặc biệt. Đăng ký không nhận role."
           }
         }
       },
